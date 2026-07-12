@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { InlineAutocomplete } from "@/components/ui/inline-autocomplete";
 import { toast } from "sonner";
 import { format, isBefore } from "date-fns";
 import { QRCodeSVG } from "qrcode.react";
@@ -133,12 +133,16 @@ export default function BookingsPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label>Resource *</Label>
-                <Select value={form.assetId} onValueChange={(v) => setForm((p) => ({ ...p, assetId: v }))} required>
-                  <SelectTrigger><SelectValue placeholder="Select resource" /></SelectTrigger>
-                  <SelectContent>{assets.filter((a: any) => a.status === "Available").map((a: any) => (
-                    <SelectItem key={a.id} value={a.id.toString()}>{a.name}</SelectItem>
-                  ))}</SelectContent>
-                </Select>
+                <InlineAutocomplete
+                  value={form.assetId}
+                  onValueChange={(v) => setForm((p) => ({ ...p, assetId: v }))}
+                  options={assets.filter((a: any) => a.status === "Available").map((a: any) => ({
+                    value: a.id.toString(),
+                    label: a.name,
+                    subLabel: a.assetTag
+                  }))}
+                  placeholder="Select resource"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Title *</Label>

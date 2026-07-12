@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { InlineAutocomplete } from "@/components/ui/inline-autocomplete";
 import { toast } from "sonner";
 
 interface Employee {
@@ -142,34 +142,37 @@ export function EmployeeTab() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label>Role</Label>
-              <Select value={form.role} onValueChange={(v) => setForm((p) => ({ ...p, role: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {ROLES.map((r) => (<SelectItem key={r} value={r}>{r}</SelectItem>))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">This is the only place roles are assigned.</p>
+              <InlineAutocomplete
+                value={form.role}
+                onValueChange={(v) => setForm((p) => ({ ...p, role: v }))}
+                options={ROLES.map((r) => ({ value: r, label: r }))}
+                placeholder="Select role"
+              />
+              <p className="text-xs text-muted-foreground mt-1">This is the only place roles are assigned.</p>
             </div>
             <div className="space-y-2">
               <Label>Department</Label>
-              <Select value={form.departmentId} onValueChange={(v) => setForm((p) => ({ ...p, departmentId: v }))}>
-                <SelectTrigger><SelectValue placeholder="No department" /></SelectTrigger>
-                <SelectContent>
-                  {departments.filter((d) => d.status === "Active").map((d) => (
-                    <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <InlineAutocomplete
+                value={form.departmentId}
+                onValueChange={(v) => setForm((p) => ({ ...p, departmentId: v }))}
+                options={departments.filter((d) => d.status === "Active").map((d) => ({
+                  value: d.id.toString(),
+                  label: d.name
+                }))}
+                placeholder="No department"
+              />
             </div>
             <div className="space-y-2">
               <Label>Status</Label>
-              <Select value={form.status} onValueChange={(v) => setForm((p) => ({ ...p, status: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Active">Active</SelectItem>
-                  <SelectItem value="Inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
+              <InlineAutocomplete
+                value={form.status}
+                onValueChange={(v) => setForm((p) => ({ ...p, status: v }))}
+                options={[
+                  { value: "Active", label: "Active" },
+                  { value: "Inactive", label: "Inactive" }
+                ]}
+                placeholder="Select status"
+              />
             </div>
             <div className="space-y-2">
               <Label>Phone</Label>

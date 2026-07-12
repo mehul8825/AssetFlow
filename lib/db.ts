@@ -99,6 +99,7 @@ function initializeSchema(db: Database.Database) {
       actual_return_date TEXT,
       return_condition TEXT,
       return_notes TEXT,
+      fine_amount REAL DEFAULT 0,
       status TEXT NOT NULL DEFAULT 'Active' CHECK(status IN ('Active', 'Returned', 'Overdue', 'Transferred')),
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))

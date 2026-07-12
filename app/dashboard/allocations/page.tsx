@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { InlineAutocomplete } from "@/components/ui/inline-autocomplete";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { BulkUploader } from "@/components/bulk-uploader";
@@ -136,42 +136,54 @@ export default function AllocationsPage() {
                 <form onSubmit={handleAllocate} className="space-y-4">
                   <div className="space-y-2">
                     <Label>Asset *</Label>
-                    <Select value={form.assetId} onValueChange={(v) => setForm((p) => ({ ...p, assetId: v }))}>
-                      <SelectTrigger><SelectValue placeholder="Select available asset" /></SelectTrigger>
-                      <SelectContent>{availableAssets.map((a: any) => (
-                        <SelectItem key={a.id} value={a.id.toString()}>{a.name} ({a.assetTag})</SelectItem>
-                      ))}</SelectContent>
-                    </Select>
+                    <InlineAutocomplete
+                      value={form.assetId}
+                      onValueChange={(v) => setForm((p) => ({ ...p, assetId: v }))}
+                      options={availableAssets.map((a: any) => ({
+                        value: a.id.toString(),
+                        label: a.name,
+                        subLabel: a.assetTag
+                      }))}
+                      placeholder="Select available asset"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Target Type *</Label>
-                    <Select value={form.targetType} onValueChange={(v) => setForm((p) => ({ ...p, targetType: v, employeeId: "", departmentId: "" }))}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="employee">Employee</SelectItem>
-                        <SelectItem value="department">Department</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <InlineAutocomplete
+                      value={form.targetType}
+                      onValueChange={(v) => setForm((p) => ({ ...p, targetType: v, employeeId: "", departmentId: "" }))}
+                      options={[
+                        { value: "employee", label: "Employee" },
+                        { value: "department", label: "Department" }
+                      ]}
+                      placeholder="Select target type"
+                    />
                   </div>
                   {form.targetType === "employee" ? (
                     <div className="space-y-2">
                       <Label>Employee *</Label>
-                      <Select value={form.employeeId} onValueChange={(v) => setForm((p) => ({ ...p, employeeId: v }))}>
-                        <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
-                        <SelectContent>{employees.filter((e: any) => e.status === "Active").map((e: any) => (
-                          <SelectItem key={e.id} value={e.id.toString()}>{e.name}</SelectItem>
-                        ))}</SelectContent>
-                      </Select>
+                      <InlineAutocomplete
+                        value={form.employeeId}
+                        onValueChange={(v) => setForm((p) => ({ ...p, employeeId: v }))}
+                        options={employees.filter((e: any) => e.status === "Active").map((e: any) => ({
+                          value: e.id.toString(),
+                          label: e.name
+                        }))}
+                        placeholder="Select employee"
+                      />
                     </div>
                   ) : (
                     <div className="space-y-2">
                       <Label>Department *</Label>
-                      <Select value={form.departmentId} onValueChange={(v) => setForm((p) => ({ ...p, departmentId: v }))}>
-                        <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
-                        <SelectContent>{departments.filter((d: any) => d.status === "Active").map((d: any) => (
-                          <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
-                        ))}</SelectContent>
-                      </Select>
+                      <InlineAutocomplete
+                        value={form.departmentId}
+                        onValueChange={(v) => setForm((p) => ({ ...p, departmentId: v }))}
+                        options={departments.filter((d: any) => d.status === "Active").map((d: any) => ({
+                          value: d.id.toString(),
+                          label: d.name
+                        }))}
+                        placeholder="Select department"
+                      />
                     </div>
                   )}
                   <div className="space-y-2">
@@ -190,21 +202,28 @@ export default function AllocationsPage() {
               <form onSubmit={handleTransfer} className="space-y-4">
                 <div className="space-y-2">
                   <Label>Asset *</Label>
-                  <Select value={transferForm.assetId} onValueChange={(v) => setTransferForm((p) => ({ ...p, assetId: v }))}>
-                    <SelectTrigger><SelectValue placeholder="Select asset" /></SelectTrigger>
-                    <SelectContent>{assets.filter((a: any) => a.status === "Allocated").map((a: any) => (
-                      <SelectItem key={a.id} value={a.id.toString()}>{a.name} ({a.assetTag})</SelectItem>
-                    ))}</SelectContent>
-                  </Select>
+                  <InlineAutocomplete
+                    value={transferForm.assetId}
+                    onValueChange={(v) => setTransferForm((p) => ({ ...p, assetId: v }))}
+                    options={assets.filter((a: any) => a.status === "Allocated").map((a: any) => ({
+                      value: a.id.toString(),
+                      label: a.name,
+                      subLabel: a.assetTag
+                    }))}
+                    placeholder="Select asset"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Transfer To *</Label>
-                  <Select value={transferForm.toEmployeeId} onValueChange={(v) => setTransferForm((p) => ({ ...p, toEmployeeId: v }))}>
-                    <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
-                    <SelectContent>{employees.filter((e: any) => e.status === "Active").map((e: any) => (
-                      <SelectItem key={e.id} value={e.id.toString()}>{e.name}</SelectItem>
-                    ))}</SelectContent>
-                  </Select>
+                  <InlineAutocomplete
+                    value={transferForm.toEmployeeId}
+                    onValueChange={(v) => setTransferForm((p) => ({ ...p, toEmployeeId: v }))}
+                    options={employees.filter((e: any) => e.status === "Active").map((e: any) => ({
+                      value: e.id.toString(),
+                      label: e.name
+                    }))}
+                    placeholder="Select employee"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Reason</Label>
@@ -303,6 +322,11 @@ export default function AllocationsPage() {
                   <p>To: {a.employeeName || a.departmentName}</p>
                   <p>Status: {a.status}</p>
                   {a.actualReturnDate && <p>Returned: {new Date(a.actualReturnDate).toLocaleDateString()}</p>}
+                  {a.fineAmount > 0 && (
+                    <p className="text-red-500 font-semibold mt-1 bg-red-500/10 inline-block px-1.5 py-0.5 rounded">
+                      Late Fine: ₹{a.fineAmount}
+                    </p>
+                  )}
                 </div>
               </div>
             ))}
@@ -318,10 +342,12 @@ export default function AllocationsPage() {
           <form onSubmit={handleReturn} className="space-y-4">
             <div className="space-y-2">
               <Label>Condition at Return</Label>
-              <Select value={returnForm.returnCondition} onValueChange={(v) => setReturnForm((p) => ({ ...p, returnCondition: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{["New", "Good", "Fair", "Poor", "Damaged"].map((c) => (<SelectItem key={c} value={c}>{c}</SelectItem>))}</SelectContent>
-              </Select>
+              <InlineAutocomplete
+                value={returnForm.returnCondition}
+                onValueChange={(v) => setReturnForm((p) => ({ ...p, returnCondition: v }))}
+                options={["New", "Good", "Fair", "Poor", "Damaged"].map((c) => ({ value: c, label: c }))}
+                placeholder="Select condition"
+              />
             </div>
             <div className="space-y-2">
               <Label>Notes</Label>

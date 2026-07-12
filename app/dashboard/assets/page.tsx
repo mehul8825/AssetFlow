@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { InlineAutocomplete } from "@/components/ui/inline-autocomplete";
 import { toast } from "sonner";
 import { QRCodeSVG } from "qrcode.react";
 import { QrCode, Maximize } from "lucide-react";
@@ -103,12 +103,15 @@ export default function AssetsPage() {
                   </div>
                   <div className="space-y-2">
                     <Label>Category *</Label>
-                    <Select value={form.categoryId} onValueChange={(v) => setForm((p) => ({ ...p, categoryId: v }))}>
-                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                      <SelectContent>{categories.filter((c: any) => c.status === "Active").map((c: any) => (
-                        <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>
-                      ))}</SelectContent>
-                    </Select>
+                    <InlineAutocomplete
+                      value={form.categoryId}
+                      onValueChange={(v) => setForm((p) => ({ ...p, categoryId: v }))}
+                      options={categories.filter((c: any) => c.status === "Active").map((c: any) => ({
+                        value: c.id.toString(),
+                        label: c.name,
+                      }))}
+                      placeholder="Select category"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Serial Number</Label>
@@ -124,10 +127,12 @@ export default function AssetsPage() {
                   </div>
                   <div className="space-y-2">
                     <Label>Condition</Label>
-                    <Select value={form.condition} onValueChange={(v) => setForm((p) => ({ ...p, condition: v }))}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>{["New", "Good", "Fair", "Poor", "Damaged"].map((c) => (<SelectItem key={c} value={c}>{c}</SelectItem>))}</SelectContent>
-                    </Select>
+                    <InlineAutocomplete
+                      value={form.condition}
+                      onValueChange={(v) => setForm((p) => ({ ...p, condition: v }))}
+                      options={["New", "Good", "Fair", "Poor", "Damaged"].map((c) => ({ value: c, label: c }))}
+                      placeholder="Select condition"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Location</Label>
@@ -135,12 +140,15 @@ export default function AssetsPage() {
                   </div>
                   <div className="space-y-2">
                     <Label>Department</Label>
-                    <Select value={form.departmentId} onValueChange={(v) => setForm((p) => ({ ...p, departmentId: v }))}>
-                      <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
-                      <SelectContent>{departments.filter((d: any) => d.status === "Active").map((d: any) => (
-                        <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
-                      ))}</SelectContent>
-                    </Select>
+                    <InlineAutocomplete
+                      value={form.departmentId}
+                      onValueChange={(v) => setForm((p) => ({ ...p, departmentId: v }))}
+                      options={departments.filter((d: any) => d.status === "Active").map((d: any) => ({
+                        value: d.id.toString(),
+                        label: d.name,
+                      }))}
+                      placeholder="Select department (optional)"
+                    />
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -190,22 +198,26 @@ export default function AssetsPage() {
       {/* Filters */}
       <div className="flex flex-col gap-3 sm:flex-row">
         <Input placeholder="Search by name, tag, serial..." value={search} onChange={(e) => setSearch(e.target.value)} className="h-9 sm:max-w-xs" />
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="h-9 w-full sm:w-40"><SelectValue placeholder="All statuses" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            {["Available", "Allocated", "Reserved", "Under Maintenance", "Lost", "Retired", "Disposed"].map((s) => (
-              <SelectItem key={s} value={s}>{s}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={filterCategory} onValueChange={setFilterCategory}>
-          <SelectTrigger className="h-9 w-full sm:w-40"><SelectValue placeholder="All categories" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All categories</SelectItem>
-            {categories.map((c: any) => (<SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>))}
-          </SelectContent>
-        </Select>
+        <InlineAutocomplete
+          value={filterStatus}
+          onValueChange={setFilterStatus}
+          options={[
+            { value: "all", label: "All statuses" },
+            ...["Available", "Allocated", "Reserved", "Under Maintenance", "Lost", "Retired", "Disposed"].map((s) => ({ value: s, label: s }))
+          ]}
+          placeholder="All statuses"
+          className="sm:w-40"
+        />
+        <InlineAutocomplete
+          value={filterCategory}
+          onValueChange={setFilterCategory}
+          options={[
+            { value: "all", label: "All categories" },
+            ...categories.map((c: any) => ({ value: c.id.toString(), label: c.name }))
+          ]}
+          placeholder="All categories"
+          className="sm:w-40"
+        />
       </div>
 
       {loading ? (

@@ -9,7 +9,7 @@ export class AllocationModel {
               aa.allocated_by_employee_id as allocatedByEmployeeId,
               aa.allocation_date as allocationDate, aa.expected_return_date as expectedReturnDate,
               aa.actual_return_date as actualReturnDate, aa.return_condition as returnCondition,
-              aa.return_notes as returnNotes, aa.status, aa.created_at as createdAt,
+              aa.return_notes as returnNotes, aa.fine_amount as fineAmount, aa.status, aa.created_at as createdAt,
               a.name as assetName, a.asset_tag as assetTag,
               e.name as employeeName, d.name as departmentName,
               ab.name as allocatedByName
@@ -62,13 +62,13 @@ export class AllocationModel {
     return result.lastInsertRowid as number;
   }
 
-  static updateStatus(id: number, status: string, returnCondition?: string, returnNotes?: string) {
+  static updateStatus(id: number, status: string, returnCondition?: string, returnNotes?: string, fineAmount?: number) {
     const db = getDb();
     if (status === 'Returned') {
         db.prepare(
           `UPDATE asset_allocations SET status = 'Returned', actual_return_date = datetime('now'),
-           return_condition = ?, return_notes = ?, updated_at = datetime('now') WHERE id = ?`
-        ).run(returnCondition || null, returnNotes || null, id);
+           return_condition = ?, return_notes = ?, fine_amount = ?, updated_at = datetime('now') WHERE id = ?`
+        ).run(returnCondition || null, returnNotes || null, fineAmount || 0, id);
     } else {
         db.prepare("UPDATE asset_allocations SET status = ?, updated_at = datetime('now') WHERE id = ?").run(status, id);
     }

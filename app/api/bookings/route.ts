@@ -58,6 +58,12 @@ export async function POST(request: NextRequest) {
 
     ActivityModel.log(user.id, 'CREATE', 'Booking', bookingId, `Booked ${asset.asset_tag} from ${startTime} to ${endTime}`);
 
+    const managers = (await import("@/models/employee.model")).EmployeeModel.getManagers();
+    const NotificationModel = (await import("@/models/notification.model")).NotificationModel;
+    for (const manager of managers) {
+        NotificationModel.create(manager.id, 'New Booking Request', `New booking request for asset ${asset.name} from ${user.name}`, 'BOOKING_REQUEST', '/dashboard/bookings');
+    }
+
     return Response.json({ message: "Resource booked successfully", id: bookingId }, { status: 201 });
   } catch (error: any) {
     return Response.json({ error: "Internal server error" }, { status: 500 });

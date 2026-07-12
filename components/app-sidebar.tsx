@@ -39,7 +39,8 @@ import {
   ChevronRight,
   LogOut,
   Trophy,
-  Network
+  Network,
+  User
 } from "lucide-react";
 
 const navItems = [
@@ -198,7 +199,7 @@ export function AppSidebar() {
 
       <SidebarFooter className="p-4 border-t border-white/5 bg-gradient-to-b from-transparent to-black/10">
         <DropdownMenu>
-          <DropdownMenuTrigger render={<div className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-all duration-300 hover:bg-white/5 cursor-pointer ring-1 ring-transparent hover:ring-white/10 hover:shadow-md group outline-none" />}>
+          <DropdownMenuTrigger render={<button type="button" className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-all duration-300 hover:bg-white/5 cursor-pointer ring-1 ring-transparent hover:ring-white/10 hover:shadow-md group outline-none" />}>
               <div className="relative pointer-events-none">
                 <Avatar className="h-10 w-10 ring-2 ring-background transition-transform duration-300 group-hover:scale-105 group-hover:ring-primary/30">
                   <AvatarFallback className="bg-gradient-to-br from-primary to-blue-600 text-white font-semibold text-sm">
@@ -222,9 +223,17 @@ export function AppSidebar() {
               <p className="text-xs text-muted-foreground mt-0.5">{user?.email}</p>
             </div>
             <DropdownMenuSeparator className="bg-white/10 mx-1" />
+            <Link href="/dashboard/profile" className="outline-none block w-full">
+              <DropdownMenuItem 
+                className="cursor-pointer rounded-lg mt-1 px-3 py-2.5 flex w-full items-center gap-2 transition-colors font-medium"
+              >
+                <User className="h-4 w-4" />
+                <span>View Profile</span>
+              </DropdownMenuItem>
+            </Link>
             <DropdownMenuItem 
               onClick={logout} 
-              className="text-red-500 focus:bg-red-500/10 focus:text-red-600 cursor-pointer rounded-lg mt-1 px-3 py-2.5 flex items-center gap-2 transition-colors font-medium"
+              className="text-red-500 focus:bg-red-500/10 focus:text-red-600 cursor-pointer rounded-lg mt-1 px-3 py-2.5 flex w-full items-center gap-2 transition-colors font-medium"
             >
               <LogOut className="h-4 w-4" />
               <span>Log out safely</span>

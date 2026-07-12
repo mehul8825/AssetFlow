@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { InlineAutocomplete } from "@/components/ui/inline-autocomplete";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -126,12 +126,16 @@ export default function MaintenancePage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label>Asset *</Label>
-                <Select value={form.assetId} onValueChange={(v) => setForm((p) => ({ ...p, assetId: v }))} required>
-                  <SelectTrigger><SelectValue placeholder="Select asset" /></SelectTrigger>
-                  <SelectContent>{assets.filter((a:any) => a.status !== 'Retired' && a.status !== 'Disposed').map((a: any) => (
-                    <SelectItem key={a.id} value={a.id.toString()}>{a.name} ({a.assetTag})</SelectItem>
-                  ))}</SelectContent>
-                </Select>
+                <InlineAutocomplete
+                  value={form.assetId}
+                  onValueChange={(v) => setForm((p) => ({ ...p, assetId: v }))}
+                  options={assets.filter((a:any) => a.status !== 'Retired' && a.status !== 'Disposed').map((a: any) => ({
+                    value: a.id.toString(),
+                    label: a.name,
+                    subLabel: a.assetTag
+                  }))}
+                  placeholder="Select asset"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Issue Title *</Label>
@@ -139,12 +143,12 @@ export default function MaintenancePage() {
               </div>
               <div className="space-y-2">
                 <Label>Priority</Label>
-                <Select value={form.priority} onValueChange={(v) => setForm((p) => ({ ...p, priority: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                      {["Low", "Medium", "High", "Critical"].map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <InlineAutocomplete
+                  value={form.priority}
+                  onValueChange={(v) => setForm((p) => ({ ...p, priority: v }))}
+                  options={["Low", "Medium", "High", "Critical"].map(p => ({ value: p, label: p }))}
+                  placeholder="Select priority"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Description</Label>

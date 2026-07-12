@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
+import { ReturnTimeline } from "@/components/return-timeline";
 
 interface DashboardData {
   kpis: {
@@ -159,108 +160,53 @@ export default function DashboardPage() {
         </div>
       </div>
 
+
       {/* Main Content Grid */}
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Overdue Returns */}
+        {/* Return Timeline */}
         <div className="rounded-xl border border-border bg-card">
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
-            <h3 className="text-sm font-semibold">Overdue Returns</h3>
-            <Badge variant="destructive" className="text-xs">
-              {data?.overdueReturns?.length ?? 0}
-            </Badge>
+            <h3 className="text-sm font-semibold">Live Return Timeline</h3>
           </div>
-          <div className="max-h-64 overflow-auto">
-            {data?.overdueReturns?.length === 0 ? (
-              <div className="px-5 py-8 text-center text-sm text-muted-foreground">
-                No overdue returns 🎉
-              </div>
-            ) : (
-              <div className="divide-y divide-border">
-                {data?.overdueReturns?.map((item: any) => (
-                  <div key={item.id} className="flex items-center justify-between px-5 py-3">
-                    <div>
-                      <p className="text-sm font-medium">{item.assetName}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {item.assetTag} · {item.employeeName}
-                      </p>
-                    </div>
-                    <Badge variant="destructive" className="text-xs">
-                      Due: {new Date(item.expectedReturnDate).toLocaleDateString()}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            )}
+          <div className="max-h-[400px] overflow-auto">
+            <ReturnTimeline items={[...(data?.overdueReturns || []), ...(data?.upcomingReturns || [])]} />
           </div>
         </div>
 
-        {/* Upcoming Returns */}
+        {/* Recent Activity */}
         <div className="rounded-xl border border-border bg-card">
-          <div className="flex items-center justify-between border-b border-border px-5 py-4">
-            <h3 className="text-sm font-semibold">Upcoming Returns</h3>
-            <Badge variant="secondary" className="text-xs">
-              {data?.upcomingReturns?.length ?? 0}
-            </Badge>
+          <div className="border-b border-border px-5 py-4">
+            <h3 className="text-sm font-semibold">Recent Activity</h3>
           </div>
-          <div className="max-h-64 overflow-auto">
-            {data?.upcomingReturns?.length === 0 ? (
+          <div className="max-h-[400px] overflow-auto">
+            {data?.recentActivity?.length === 0 ? (
               <div className="px-5 py-8 text-center text-sm text-muted-foreground">
-                No upcoming returns
+                No recent activity
               </div>
             ) : (
               <div className="divide-y divide-border">
-                {data?.upcomingReturns?.map((item: any) => (
-                  <div key={item.id} className="flex items-center justify-between px-5 py-3">
-                    <div>
-                      <p className="text-sm font-medium">{item.assetName}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {item.assetTag} · {item.employeeName}
+                {data?.recentActivity?.map((item: any) => (
+                  <div key={item.id} className="flex items-center gap-4 px-5 py-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
+                      <span className="text-xs font-medium">
+                        {item.employeeName?.[0] ?? "?"}
+                      </span>
+                    </div>
+                    <div className="flex-1 truncate">
+                      <p className="truncate text-sm">
+                        <span className="font-medium">{item.employeeName}</span>
+                        {" · "}
+                        <span className="text-muted-foreground">{item.details}</span>
                       </p>
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(item.expectedReturnDate).toLocaleDateString()}
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {new Date(item.createdAt).toLocaleString()}
                     </span>
                   </div>
                 ))}
               </div>
             )}
           </div>
-        </div>
-      </div>
-
-      {/* Recent Activity */}
-      <div className="rounded-xl border border-border bg-card">
-        <div className="border-b border-border px-5 py-4">
-          <h3 className="text-sm font-semibold">Recent Activity</h3>
-        </div>
-        <div className="max-h-80 overflow-auto">
-          {data?.recentActivity?.length === 0 ? (
-            <div className="px-5 py-8 text-center text-sm text-muted-foreground">
-              No recent activity
-            </div>
-          ) : (
-            <div className="divide-y divide-border">
-              {data?.recentActivity?.map((item: any) => (
-                <div key={item.id} className="flex items-center gap-4 px-5 py-3">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
-                    <span className="text-xs font-medium">
-                      {item.employeeName?.[0] ?? "?"}
-                    </span>
-                  </div>
-                  <div className="flex-1 truncate">
-                    <p className="truncate text-sm">
-                      <span className="font-medium">{item.employeeName}</span>
-                      {" · "}
-                      <span className="text-muted-foreground">{item.details}</span>
-                    </p>
-                  </div>
-                  <span className="shrink-0 text-xs text-muted-foreground">
-                    {new Date(item.createdAt).toLocaleString()}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </div>
     </div>

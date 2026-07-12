@@ -22,6 +22,10 @@ export async function GET(request: NextRequest) {
         allocations = AllocationModel.getAll();
     }
     
+    if (user.role === "Employee") {
+      allocations = allocations.filter((a: any) => a.allocatedToEmployeeId === user.id);
+    }
+
     return Response.json({ allocations });
   } catch (error: any) {
     return Response.json({ error: "Internal server error" }, { status: 500 });

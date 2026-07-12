@@ -11,12 +11,21 @@ export async function GET(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams;
     const search = searchParams.get("search");
-    const categoryId = searchParams.get("categoryId");
-    const status = searchParams.get("status");
+    let categoryId = searchParams.get("categoryId");
+    if (categoryId === "all") categoryId = null;
+    let status = searchParams.get("status");
+    if (status === "all") status = null;
     const departmentId = searchParams.get("departmentId");
     const bookable = searchParams.get("bookable");
 
-    const assets = AssetModel.getAll({ search, categoryId, status, departmentId, bookable });
+    let assets = AssetModel.getAll({ search, categoryId, status, departmentId, bookable });
+    
+    if (user.role === "Employee") {
+      const myAllocations = (await import("@/models/allocation.model")).AllocationModel.getAll().filter((a: any) => a.allocatedToEmployeeId === user.id && a.status === 'Active');
+      const myAssetIds = myAllocations.map((a: any) => a.assetId);
+      assets = assets.filter((a: any) => myAssetIds.includes(a.id) || a.status === 'Available');
+    }
+
     return Response.json({ assets });
   } catch (error: any) {
     return Response.json({ error: "Internal server error" }, { status: 500 });

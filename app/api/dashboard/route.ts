@@ -35,6 +35,13 @@ export async function GET() {
       )
       .get() as any;
 
+    let returnsCondition = "aa.status = 'Active' AND aa.expected_return_date IS NOT NULL";
+    let returnsParams: any[] = [];
+    if (user.role === 'Employee') {
+        returnsCondition += " AND aa.allocated_to_employee_id = ?";
+        returnsParams.push(user.id);
+    }
+
     // Overdue returns
     const overdueReturns = db
       .prepare(
@@ -44,13 +51,12 @@ export async function GET() {
          FROM asset_allocations aa
          JOIN assets a ON a.id = aa.asset_id
          LEFT JOIN employees e ON e.id = aa.allocated_to_employee_id
-         WHERE aa.status = 'Active'
-           AND aa.expected_return_date IS NOT NULL
+         WHERE ${returnsCondition}
            AND aa.expected_return_date < datetime('now')
          ORDER BY aa.expected_return_date ASC
          LIMIT 10`
       )
-      .all();
+      .all(...returnsParams);
 
     // Upcoming returns (not overdue)
     const upcomingReturns = db
@@ -61,25 +67,32 @@ export async function GET() {
          FROM asset_allocations aa
          JOIN assets a ON a.id = aa.asset_id
          LEFT JOIN employees e ON e.id = aa.allocated_to_employee_id
-         WHERE aa.status = 'Active'
-           AND aa.expected_return_date IS NOT NULL
+         WHERE ${returnsCondition}
            AND aa.expected_return_date >= datetime('now')
          ORDER BY aa.expected_return_date ASC
          LIMIT 10`
       )
-      .all();
+      .all(...returnsParams);
 
     // Recent activity
+    let activityCondition = "";
+    let activityParams: any[] = [];
+    if (user.role === 'Employee') {
+        activityCondition = "WHERE al.employee_id = ?";
+        activityParams.push(user.id);
+    }
+
     const recentActivity = db
       .prepare(
         `SELECT al.id, al.action, al.entity_type as entityType, al.details, al.created_at as createdAt,
                 e.name as employeeName
          FROM activity_logs al
          LEFT JOIN employees e ON e.id = al.employee_id
+         ${activityCondition}
          ORDER BY al.created_at DESC
          LIMIT 15`
       )
-      .all();
+      .all(...activityParams);
 
     // Total assets
     const totalAssets = db

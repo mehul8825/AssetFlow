@@ -27,12 +27,24 @@ export async function PUT(
 
     if (action === 'return') {
         if (!returnCondition) return Response.json({ error: "Return condition is required" }, { status: 400 });
-        
+        let fineAmount = 0;
+        if (allocation.expected_return_date) {
+            const expected = new Date(allocation.expected_return_date);
+            const now = new Date();
+            if (now > expected) {
+                const diffTime = Math.abs(now.getTime() - expected.getTime());
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+                fineAmount = diffDays * 500;
+            }
+        }
+
         const db = (await import("@/lib/db")).getDb();
         const tx = db.transaction(() => {
-            AllocationModel.updateStatus(allocationId, 'Returned', returnCondition, returnNotes);
+            AllocationModel.updateStatus(allocationId, 'Returned', returnCondition, returnNotes, fineAmount);
             AssetModel.updateStatus(allocation.asset_id, 'Available');
-            ActivityModel.log(user.id, 'RETURN', 'Asset', allocation.asset_id, `Asset ${allocation.assetTag} returned. Condition: ${returnCondition}`);
+            let logMsg = `Asset ${allocation.assetTag} returned. Condition: ${returnCondition}`;
+            if (fineAmount > 0) logMsg += `. Late fine applied: ₹${fineAmount}`;
+            ActivityModel.log(user.id, 'RETURN', 'Asset', allocation.asset_id, logMsg);
         });
 
         try {

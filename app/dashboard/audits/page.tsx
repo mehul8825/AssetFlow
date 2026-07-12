@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { InlineAutocomplete } from "@/components/ui/inline-autocomplete";
 import { toast } from "sonner";
 import { ChevronDown, ChevronUp, AlertCircle, CheckCircle2, HelpCircle } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
@@ -115,21 +115,28 @@ export default function AuditsPage() {
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label>Scope Type</Label>
-                        <Select value={form.scopeType} onValueChange={v => setForm(p => ({ ...p, scopeType: v, scopeValue: "" }))}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="Department">Department</SelectItem>
-                                <SelectItem value="Location">Location</SelectItem>
-                            </SelectContent>
-                        </Select>
+                        <InlineAutocomplete
+                          value={form.scopeType}
+                          onValueChange={v => setForm(p => ({ ...p, scopeType: v, scopeValue: "" }))}
+                          options={[
+                            { value: "Department", label: "Department" },
+                            { value: "Location", label: "Location" }
+                          ]}
+                          placeholder="Select scope type"
+                        />
                     </div>
                     <div className="space-y-2">
                         <Label>Scope Value *</Label>
                         {form.scopeType === "Department" ? (
-                            <Select value={form.scopeValue} onValueChange={v => setForm(p => ({ ...p, scopeValue: v }))} required>
-                                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                                <SelectContent>{departments.filter(d=>d.status==='Active').map(d => <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>)}</SelectContent>
-                            </Select>
+                            <InlineAutocomplete
+                              value={form.scopeValue}
+                              onValueChange={v => setForm(p => ({ ...p, scopeValue: v }))}
+                              options={departments.filter(d=>d.status==='Active').map(d => ({
+                                value: d.id.toString(),
+                                label: d.name
+                              }))}
+                              placeholder="Select department"
+                            />
                         ) : (
                             <Input value={form.scopeValue} onChange={e => setForm(p => ({ ...p, scopeValue: e.target.value }))} placeholder="e.g. NY Office" required />
                         )}

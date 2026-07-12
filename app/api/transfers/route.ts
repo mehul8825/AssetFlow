@@ -11,7 +11,12 @@ export async function GET() {
     const user = await getCurrentUser();
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-    const transfers = TransferModel.getAll();
+    let transfers = TransferModel.getAll();
+    
+    if (user.role === "Employee") {
+      transfers = transfers.filter((t: any) => t.fromEmployeeId === user.id || t.toEmployeeId === user.id || t.requestedByEmployeeId === user.id);
+    }
+
     return Response.json({ transfers });
   } catch (error: any) {
     return Response.json({ error: "Internal server error" }, { status: 500 });
