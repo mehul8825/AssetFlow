@@ -37,7 +37,9 @@ import {
   Bell,
   Sparkles,
   ChevronRight,
-  LogOut
+  LogOut,
+  Trophy,
+  Network
 } from "lucide-react";
 
 const navItems = [
@@ -70,6 +72,18 @@ const navItems = [
     href: "/dashboard/bookings",
     icon: CalendarRange,
     roles: ["Admin", "Asset Manager", "Department Head", "Employee"],
+  },
+  {
+    title: "Leaderboard",
+    href: "/dashboard/leaderboard",
+    icon: Trophy,
+    roles: ["Admin", "Asset Manager", "Department Head", "Employee"],
+  },
+  {
+    title: "Asset Network",
+    href: "/dashboard/network",
+    icon: Network,
+    roles: ["Admin", "Asset Manager", "Department Head"],
   },
   {
     title: "Maintenance",

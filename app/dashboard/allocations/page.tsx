@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { BulkUploader } from "@/components/bulk-uploader";
 
 export default function AllocationsPage() {
   const { user } = useAuth();
@@ -217,9 +218,11 @@ export default function AllocationsPage() {
       </div>
 
       <Tabs defaultValue="active">
-        <TabsList><TabsTrigger value="active">Active ({activeAllocations.length})</TabsTrigger>
+        <TabsList>
+          <TabsTrigger value="active">Active ({activeAllocations.length})</TabsTrigger>
           <TabsTrigger value="transfers">Transfers ({transfers.length})</TabsTrigger>
           <TabsTrigger value="history">History ({pastAllocations.length})</TabsTrigger>
+          {canAllocate && <TabsTrigger value="bulk" className="bg-primary/10 text-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Bulk Upload ✨</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="active" className="mt-4">
@@ -253,6 +256,18 @@ export default function AllocationsPage() {
             {activeAllocations.length === 0 && <p className="col-span-full py-8 text-center text-sm text-muted-foreground">No active allocations</p>}
           </div>
         </TabsContent>
+
+        {canAllocate && (
+          <TabsContent value="bulk" className="mt-4">
+            <div className="rounded-2xl border bg-card p-6 shadow-sm">
+              <div className="mb-8 text-center">
+                <h2 className="text-xl font-bold">Smart Bulk-Allocation</h2>
+                <p className="text-muted-foreground text-sm mt-1">Upload a CSV file to instantly allocate multiple assets to employees.</p>
+              </div>
+              <BulkUploader onSuccess={fetchData} />
+            </div>
+          </TabsContent>
+        )}
 
         <TabsContent value="transfers" className="mt-4">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
