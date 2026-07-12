@@ -5,7 +5,7 @@ export class EmployeeModel {
     const db = getDb();
     let query = `
       SELECT e.id, e.name, e.email, e.role, e.department_id as departmentId,
-             e.status, e.phone, e.created_at as createdAt,
+             e.status, e.phone, e.salary_deductions, e.created_at as createdAt,
              d.name as departmentName
       FROM employees e
       LEFT JOIN departments d ON d.id = e.department_id
@@ -36,7 +36,7 @@ export class EmployeeModel {
     return db
       .prepare(
         `SELECT e.id, e.name, e.email, e.role, e.department_id as departmentId,
-                e.status, e.phone, e.created_at as createdAt,
+                e.status, e.phone, e.salary_deductions, e.created_at as createdAt,
                 d.name as departmentName
          FROM employees e
          LEFT JOIN departments d ON d.id = e.department_id
@@ -74,5 +74,10 @@ export class EmployeeModel {
   static getManagers() {
       const db = getDb();
       return db.prepare("SELECT id FROM employees WHERE role = 'Asset Manager' AND status = 'Active'").all();
+  }
+
+  static addSalaryDeduction(id: number, amount: number) {
+      const db = getDb();
+      db.prepare(`UPDATE employees SET salary_deductions = salary_deductions + ? WHERE id = ?`).run(amount, id);
   }
 }

@@ -40,6 +40,8 @@ export async function PUT(
             });
             TransferModel.updateStatus(transferId, 'Completed', user.id);
             ActivityModel.log(user.id, 'TRANSFER_APPROVE', 'Asset', transfer.asset_id, `Approved transfer of ${transfer.assetTag} to ${transfer.to_employee_id}`);
+            const EmployeeModel = require("@/models/employee.model").EmployeeModel;
+            EmployeeModel.addSalaryDeduction(transfer.to_employee_id, asset.purchase_cost || 0);
         });
 
         try {

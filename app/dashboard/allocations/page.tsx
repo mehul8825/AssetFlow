@@ -196,25 +196,25 @@ export default function AllocationsPage() {
             </Dialog>
           )}
           <Dialog open={transferDialog} onOpenChange={setTransferDialog}>
-            <DialogTrigger asChild><Button variant="outline" size="sm">Transfer Request</Button></DialogTrigger>
+            <DialogTrigger asChild><Button variant="outline" size="sm">Request Asset</Button></DialogTrigger>
             <DialogContent className="sm:max-w-md">
-              <DialogHeader><DialogTitle>Request Transfer</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>Request Asset</DialogTitle></DialogHeader>
               <form onSubmit={handleTransfer} className="space-y-4">
                 <div className="space-y-2">
                   <Label>Asset *</Label>
                   <InlineAutocomplete
                     value={transferForm.assetId}
                     onValueChange={(v) => setTransferForm((p) => ({ ...p, assetId: v }))}
-                    options={assets.filter((a: any) => a.status === "Allocated").map((a: any) => ({
+                    options={assets.filter((a: any) => a.status === "Allocated" || a.status === "Available").map((a: any) => ({
                       value: a.id.toString(),
                       label: a.name,
-                      subLabel: a.assetTag
+                      subLabel: `${a.assetTag} (${a.status})`
                     }))}
                     placeholder="Select asset"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Transfer To *</Label>
+                  <Label>Request For *</Label>
                   <InlineAutocomplete
                     value={transferForm.toEmployeeId}
                     onValueChange={(v) => setTransferForm((p) => ({ ...p, toEmployeeId: v }))}
@@ -239,7 +239,7 @@ export default function AllocationsPage() {
       <Tabs defaultValue="active">
         <TabsList>
           <TabsTrigger value="active">Active ({activeAllocations.length})</TabsTrigger>
-          <TabsTrigger value="transfers">Transfers ({transfers.length})</TabsTrigger>
+          <TabsTrigger value="transfers">Requests ({transfers.length})</TabsTrigger>
           <TabsTrigger value="history">History ({pastAllocations.length})</TabsTrigger>
           {canAllocate && <TabsTrigger value="bulk" className="bg-primary/10 text-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Bulk Upload ✨</TabsTrigger>}
         </TabsList>

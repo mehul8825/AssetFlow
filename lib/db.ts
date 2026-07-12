@@ -58,6 +58,7 @@ function initializeSchema(db: Database.Database) {
       status TEXT NOT NULL DEFAULT 'Active' CHECK(status IN ('Active', 'Inactive')),
       phone TEXT,
       avatar_url TEXT,
+      salary_deductions REAL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
