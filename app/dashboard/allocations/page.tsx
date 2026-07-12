@@ -18,12 +18,13 @@ export default function AllocationsPage() {
   const [transfers, setTransfers] = useState<any[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [allocDialog, setAllocDialog] = useState(false);
   const [transferDialog, setTransferDialog] = useState(false);
   const [returnDialog, setReturnDialog] = useState(false);
   const [selectedAlloc, setSelectedAlloc] = useState<any>(null);
-  const [form, setForm] = useState({ assetId: "", employeeId: "", expectedReturnDate: "" });
+  const [form, setForm] = useState({ assetId: "", targetType: "employee", employeeId: "", departmentId: "", expectedReturnDate: "" });
   const [transferForm, setTransferForm] = useState({ assetId: "", toEmployeeId: "", reason: "" });
   const [returnForm, setReturnForm] = useState({ returnCondition: "Good", returnNotes: "" });
 
@@ -31,16 +32,18 @@ export default function AllocationsPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [aRes, tRes, asRes, eRes] = await Promise.all([
+    const [aRes, tRes, asRes, eRes, dRes] = await Promise.all([
       fetch("/api/allocations").then((r) => r.json()),
       fetch("/api/transfers").then((r) => r.json()),
       fetch("/api/assets").then((r) => r.json()),
       fetch("/api/employees").then((r) => r.json()),
+      fetch("/api/departments").then((r) => r.json()),
     ]);
     setAllocations(aRes.allocations || []);
     setTransfers(tRes.transfers || []);
     setAssets(asRes.assets || []);
     setEmployees(eRes.employees || []);
+    setDepartments(dRes.departments || []);
     setLoading(false);
   }, []);
 
@@ -48,9 +51,16 @@ export default function AllocationsPage() {
 
   const handleAllocate = async (e: React.FormEvent) => {
     e.preventDefault();
+    const payload: any = {
+        assetId: parseInt(form.assetId),
+        expectedReturnDate: form.expectedReturnDate || null
+    };
+    if (form.targetType === "employee" && form.employeeId) payload.employeeId = parseInt(form.employeeId);
+    if (form.targetType === "department" && form.departmentId) payload.departmentId = parseInt(form.departmentId);
+
     const res = await fetch("/api/allocations", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ assetId: parseInt(form.assetId), employeeId: parseInt(form.employeeId), expectedReturnDate: form.expectedReturnDate || null }),
+      body: JSON.stringify(payload),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -60,7 +70,7 @@ export default function AllocationsPage() {
     }
     toast.success("Asset allocated!");
     setAllocDialog(false);
-    setForm({ assetId: "", employeeId: "", expectedReturnDate: "" });
+    setForm({ assetId: "", targetType: "employee", employeeId: "", departmentId: "", expectedReturnDate: "" });
     fetchData();
   };
 
@@ -133,14 +143,36 @@ export default function AllocationsPage() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Employee *</Label>
-                    <Select value={form.employeeId} onValueChange={(v) => setForm((p) => ({ ...p, employeeId: v }))}>
-                      <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
-                      <SelectContent>{employees.filter((e: any) => e.status === "Active").map((e: any) => (
-                        <SelectItem key={e.id} value={e.id.toString()}>{e.name}</SelectItem>
-                      ))}</SelectContent>
+                    <Label>Target Type *</Label>
+                    <Select value={form.targetType} onValueChange={(v) => setForm((p) => ({ ...p, targetType: v, employeeId: "", departmentId: "" }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="employee">Employee</SelectItem>
+                        <SelectItem value="department">Department</SelectItem>
+                      </SelectContent>
                     </Select>
                   </div>
+                  {form.targetType === "employee" ? (
+                    <div className="space-y-2">
+                      <Label>Employee *</Label>
+                      <Select value={form.employeeId} onValueChange={(v) => setForm((p) => ({ ...p, employeeId: v }))}>
+                        <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
+                        <SelectContent>{employees.filter((e: any) => e.status === "Active").map((e: any) => (
+                          <SelectItem key={e.id} value={e.id.toString()}>{e.name}</SelectItem>
+                        ))}</SelectContent>
+                      </Select>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label>Department *</Label>
+                      <Select value={form.departmentId} onValueChange={(v) => setForm((p) => ({ ...p, departmentId: v }))}>
+                        <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
+                        <SelectContent>{departments.filter((d: any) => d.status === "Active").map((d: any) => (
+                          <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
+                        ))}</SelectContent>
+                      </Select>
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <Label>Expected Return Date</Label>
                     <Input type="date" value={form.expectedReturnDate} onChange={(e) => setForm((p) => ({ ...p, expectedReturnDate: e.target.value }))} />

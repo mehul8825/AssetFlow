@@ -25,21 +25,31 @@ export async function PUT(
         return Response.json({ error: "Pending transfer request not found" }, { status: 404 });
     }
 
+    const asset = (await import("@/models/asset.model")).AssetModel.getById(transfer.asset_id);
+    if (!asset || ['Under Maintenance', 'Lost', 'Retired', 'Disposed'].includes(asset.status)) {
+        return Response.json({ error: `Cannot process transfer. Asset status: ${asset?.status || 'Unknown'}` }, { status: 400 });
+    }
+
     if (action === 'Approve') {
-        TransferModel.updateStatus(transferId, 'Approved', user.id);
-        
-        AllocationModel.updateStatusByAssetId(transfer.asset_id, 'Transferred');
-        
-        AllocationModel.create({
-            assetId: transfer.asset_id, employeeId: transfer.to_employee_id, allocatedByEmployeeId: user.id
+        const db = (await import("@/lib/db")).getDb();
+        const tx = db.transaction(() => {
+            TransferModel.updateStatus(transferId, 'Approved', user.id);
+            AllocationModel.updateStatusByAssetId(transfer.asset_id, 'Transferred');
+            AllocationModel.create({
+                assetId: transfer.asset_id, employeeId: transfer.to_employee_id, allocatedByEmployeeId: user.id
+            });
+            TransferModel.updateStatus(transferId, 'Completed', user.id);
+            ActivityModel.log(user.id, 'TRANSFER_APPROVE', 'Asset', transfer.asset_id, `Approved transfer of ${transfer.assetTag} to ${transfer.to_employee_id}`);
         });
 
-        TransferModel.updateStatus(transferId, 'Completed', user.id);
+        try {
+            tx();
+        } catch (e: any) {
+            return Response.json({ error: e.message }, { status: 409 });
+        }
 
         NotificationModel.create(transfer.requested_by_employee_id, 'Transfer Approved', `Your transfer request for ${transfer.assetTag} was approved.`, 'TRANSFER_APPROVED', '/dashboard/allocations');
         NotificationModel.create(transfer.to_employee_id, 'Asset Assigned', `You have been assigned asset: ${transfer.assetName} (${transfer.assetTag}) via transfer.`, 'ASSET_ASSIGNED', '/dashboard/assets');
-        
-        ActivityModel.log(user.id, 'TRANSFER_APPROVE', 'Asset', transfer.asset_id, `Approved transfer of ${transfer.assetTag} to ${transfer.to_employee_id}`);
 
     } else if (action === 'Reject') {
         TransferModel.updateStatus(transferId, 'Rejected', user.id, rejectionReason);

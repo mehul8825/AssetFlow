@@ -42,6 +42,11 @@ export async function POST(request: NextRequest) {
         return Response.json({ error: "Asset is not bookable" }, { status: 400 });
     }
 
+    const invalidStatuses = ['Under Maintenance', 'Lost', 'Retired', 'Disposed'];
+    if (invalidStatuses.includes(asset.status)) {
+        return Response.json({ error: `Cannot book asset. Current status: ${asset.status}` }, { status: 400 });
+    }
+
     const overlap = BookingModel.checkOverlap(assetId, startTime, endTime);
     if (overlap) {
         return Response.json({ error: "Time slot overlaps with an existing booking" }, { status: 409 });
