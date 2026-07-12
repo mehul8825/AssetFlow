@@ -10,6 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { QRCodeSVG } from "qrcode.react";
+import { QrCode, Maximize } from "lucide-react";
 
 const statusColors: Record<string, string> = {
   Available: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
@@ -28,6 +30,7 @@ export default function AssetsPage() {
   const [departments, setDepartments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [qrAsset, setQrAsset] = useState<any | null>(null);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
@@ -154,6 +157,35 @@ export default function AssetsPage() {
           </Dialog>
         )}
       </div>
+      
+      <Dialog open={!!qrAsset} onOpenChange={(open) => !open && setQrAsset(null)}>
+        <DialogContent className="sm:max-w-sm text-center flex flex-col items-center">
+          <DialogHeader>
+            <DialogTitle>Smart QR Code</DialogTitle>
+          </DialogHeader>
+          {qrAsset && (
+            <>
+              <p className="text-sm text-muted-foreground mb-4">Scan this code with the AssetFlow mobile app to immediately log an audit or check-in.</p>
+              <div className="p-4 bg-white border border-border shadow-sm rounded-2xl mb-2 flex items-center justify-center">
+                <QRCodeSVG 
+                  value={JSON.stringify({ tag: qrAsset.assetTag, id: qrAsset.id })} 
+                  size={200}
+                  level="H"
+                  includeMargin={false}
+                />
+              </div>
+              <div className="w-full bg-muted/50 rounded-xl p-4 border border-border text-left mt-4">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Asset Info</p>
+                <p className="font-medium">{qrAsset.name}</p>
+                <p className="font-mono text-sm text-primary mt-1">{qrAsset.assetTag}</p>
+              </div>
+              <Button variant="secondary" className="w-full mt-4 gap-2">
+                <Maximize className="h-4 w-4" /> Print Label
+              </Button>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Filters */}
       <div className="flex flex-col gap-3 sm:flex-row">
@@ -195,7 +227,14 @@ export default function AssetsPage() {
               <tbody className="divide-y">
                 {assets.map((a: any) => (
                   <tr key={a.id} className="transition-colors hover:bg-muted/30">
-                    <td className="px-4 py-3 font-mono text-xs font-medium">{a.assetTag}</td>
+                    <td className="px-4 py-3 font-mono text-xs font-medium">
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => setQrAsset(a)} className="text-muted-foreground hover:text-primary transition-colors" title="View QR">
+                          <QrCode className="h-4 w-4" />
+                        </button>
+                        {a.assetTag}
+                      </div>
+                    </td>
                     <td className="px-4 py-3 font-medium">{a.name}{a.isBookable && <span className="ml-1 text-xs text-muted-foreground">📅</span>}</td>
                     <td className="px-4 py-3 text-muted-foreground">{a.categoryName}</td>
                     <td className="px-4 py-3 text-muted-foreground">{a.location || "—"}</td>
@@ -214,9 +253,14 @@ export default function AssetsPage() {
             {assets.map((a: any) => (
               <div key={a.id} className="rounded-xl border bg-card p-4">
                 <div className="mb-2 flex items-start justify-between">
-                  <div>
-                    <p className="font-semibold">{a.name}</p>
-                    <p className="font-mono text-xs text-muted-foreground">{a.assetTag}</p>
+                  <div className="flex items-start gap-2">
+                    <button onClick={() => setQrAsset(a)} className="mt-0.5 text-muted-foreground hover:text-primary">
+                      <QrCode className="h-4 w-4" />
+                    </button>
+                    <div>
+                      <p className="font-semibold">{a.name}</p>
+                      <p className="font-mono text-xs text-muted-foreground">{a.assetTag}</p>
+                    </div>
                   </div>
                   <span className={`rounded-md border px-2 py-0.5 text-xs font-medium ${statusColors[a.status] || ""}`}>{a.status}</span>
                 </div>

@@ -25,59 +25,74 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
+import {
+  LayoutDashboard,
+  Building2,
+  Package,
+  ClipboardList,
+  CalendarRange,
+  Wrench,
+  ClipboardCheck,
+  FileText,
+  Bell,
+  Sparkles,
+  ChevronRight,
+  LogOut
+} from "lucide-react";
+
 const navItems = [
   {
     title: "Dashboard",
     href: "/dashboard",
-    icon: DashboardIcon,
+    icon: LayoutDashboard,
     roles: ["Admin", "Asset Manager", "Department Head", "Employee"],
   },
   {
-    title: "Organization Setup",
+    title: "Organization",
     href: "/dashboard/organization",
-    icon: OrgIcon,
+    icon: Building2,
     roles: ["Admin"],
   },
   {
     title: "Assets",
     href: "/dashboard/assets",
-    icon: AssetIcon,
+    icon: Package,
     roles: ["Admin", "Asset Manager", "Department Head", "Employee"],
   },
   {
     title: "Allocations",
     href: "/dashboard/allocations",
-    icon: AllocationIcon,
+    icon: ClipboardList,
     roles: ["Admin", "Asset Manager", "Department Head", "Employee"],
   },
   {
-    title: "Resource Booking",
+    title: "Bookings",
     href: "/dashboard/bookings",
-    icon: BookingIcon,
+    icon: CalendarRange,
     roles: ["Admin", "Asset Manager", "Department Head", "Employee"],
   },
   {
     title: "Maintenance",
     href: "/dashboard/maintenance",
-    icon: MaintenanceIcon,
+    icon: Wrench,
     roles: ["Admin", "Asset Manager", "Department Head", "Employee"],
   },
   {
     title: "Audits",
     href: "/dashboard/audits",
-    icon: AuditIcon,
+    icon: ClipboardCheck,
     roles: ["Admin", "Asset Manager"],
   },
   {
     title: "Reports",
     href: "/dashboard/reports",
-    icon: ReportIcon,
+    icon: FileText,
     roles: ["Admin", "Asset Manager", "Department Head"],
   },
   {
-    title: "Activity & Notifications",
+    title: "Activity",
     href: "/dashboard/notifications",
-    icon: NotificationIcon,
+    icon: Bell,
     roles: ["Admin", "Asset Manager", "Department Head", "Employee"],
   },
 ];
@@ -95,55 +110,69 @@ export function AppSidebar() {
     .map((n: string) => n[0])
     .join("")
     .toUpperCase()
-    .slice(0, 2);
+    .slice(0, 2) || "AF";
 
   return (
-    <Sidebar>
-      <SidebarHeader className="border-b border-sidebar-border px-4 py-4">
-        <Link href="/dashboard" className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/20">
-            <svg
-              viewBox="0 0 24 24"
-              className="h-5 w-5 text-primary"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"
-              />
-            </svg>
+    <Sidebar variant="sidebar" className="border-r border-white/5 bg-background/60 backdrop-blur-xl">
+      <SidebarHeader className="px-6 py-6">
+        <Link href="/dashboard" className="flex items-center gap-3 group relative outline-none">
+          {/* Glow effect behind logo */}
+          <div className="absolute -inset-2 bg-primary/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          
+          <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-blue-600 shadow-lg shadow-primary/20 ring-1 ring-white/10 transition-transform duration-300 group-hover:scale-105 group-hover:rotate-3">
+            <Sparkles className="h-5 w-5 text-white animate-pulse" />
           </div>
-          <div>
-            <span className="text-base font-semibold tracking-tight">
+          <div className="relative z-10 flex flex-col">
+            <span className="text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70 transition-all duration-300 group-hover:to-primary">
               AssetFlow
             </span>
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
-              ERP System
-            </p>
+            <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-primary">
+              Enterprise
+            </span>
           </div>
         </Link>
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent className="px-3">
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-xs font-medium text-muted-foreground/60 uppercase tracking-wider mb-2 px-3">
+            Overview
+          </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="gap-1.5">
               {filteredItems.map((item) => {
                 const isActive =
                   pathname === item.href ||
                   (item.href !== "/dashboard" &&
                     pathname.startsWith(item.href));
+                
                 return (
                   <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton asChild isActive={isActive}>
-                      <Link href={item.href}>
-                        <item.icon />
-                        <span>{item.title}</span>
-                      </Link>
+                    <SidebarMenuButton 
+                      render={<Link href={item.href} className="w-full block outline-none" />}
+                      isActive={isActive} 
+                      className={`group relative flex items-center justify-between overflow-hidden rounded-xl h-11 px-3 transition-all duration-300 outline-none
+                        ${isActive 
+                          ? "bg-primary/10 text-primary font-semibold shadow-sm ring-1 ring-primary/20" 
+                          : "hover:bg-white/5 text-muted-foreground hover:text-foreground hover:shadow-sm"
+                        }
+                      `}
+                    >
+                      {/* Animated background gradient for active state */}
+                      {isActive && (
+                        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent opacity-50 pointer-events-none" />
+                      )}
+
+                      <div className="relative flex items-center gap-3 z-10">
+                        <div className={`flex items-center justify-center p-1.5 rounded-md transition-colors duration-300 ${isActive ? 'bg-primary/20 text-primary' : 'bg-transparent group-hover:bg-white/10'}`}>
+                          <item.icon className={`h-4 w-4 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
+                        </div>
+                        <span className="tracking-wide">{item.title}</span>
+                      </div>
+
+                      {isActive && (
+                        <ChevronRight className="relative z-10 h-4 w-4 text-primary animate-in slide-in-from-left-2 fade-in" />
+                      )}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
@@ -153,110 +182,45 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border">
+      <SidebarFooter className="p-4 border-t border-white/5 bg-gradient-to-b from-transparent to-black/10">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-sidebar-accent">
-              <Avatar className="h-8 w-8">
-                <AvatarFallback className="bg-primary/10 text-xs font-medium text-primary">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
+            <div className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-all duration-300 hover:bg-white/5 cursor-pointer ring-1 ring-transparent hover:ring-white/10 hover:shadow-md group outline-none">
+              <div className="relative">
+                <Avatar className="h-10 w-10 ring-2 ring-background transition-transform duration-300 group-hover:scale-105 group-hover:ring-primary/30">
+                  <AvatarFallback className="bg-gradient-to-br from-primary to-blue-600 text-white font-semibold text-sm">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-background" />
+              </div>
               <div className="flex-1 truncate">
-                <p className="truncate text-sm font-medium">{user?.name}</p>
-                <p className="truncate text-xs text-muted-foreground">
+                <p className="truncate text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+                  {user?.name}
+                </p>
+                <p className="truncate text-xs font-medium text-muted-foreground">
                   {user?.role}
                 </p>
               </div>
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <div className="px-2 py-1.5">
-              <p className="text-sm font-medium">{user?.name}</p>
-              <p className="text-xs text-muted-foreground">{user?.email}</p>
             </div>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={logout} className="text-destructive">
-              Log out
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="center" side="top" className="w-64 rounded-xl border-white/10 bg-background/80 backdrop-blur-xl shadow-2xl p-2 mb-2">
+            <div className="px-3 py-2.5">
+              <p className="text-sm font-semibold">{user?.name}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{user?.email}</p>
+            </div>
+            <DropdownMenuSeparator className="bg-white/10 mx-1" />
+            <DropdownMenuItem 
+              onClick={logout} 
+              className="text-red-500 focus:bg-red-500/10 focus:text-red-600 cursor-pointer rounded-lg mt-1 px-3 py-2.5 flex items-center gap-2 transition-colors font-medium"
+            >
+              <LogOut className="h-4 w-4" />
+              <span>Log out safely</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
-  );
-}
-
-// --- SVG Icon Components ---
-
-function DashboardIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
-    </svg>
-  );
-}
-
-function OrgIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z" />
-    </svg>
-  );
-}
-
-function AssetIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5m8.25 3v6.75m0 0l-3-3m3 3l3-3M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
-    </svg>
-  );
-}
-
-function AllocationIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
-    </svg>
-  );
-}
-
-function BookingIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-    </svg>
-  );
-}
-
-function MaintenanceIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M11.42 15.17l-5.1-5.1a3 3 0 114.24-4.24l5.1 5.1m-6.36 6.36l5.1 5.1a3 3 0 004.24-4.24l-5.1-5.1m-6.36 6.36l6.36-6.36" />
-    </svg>
-  );
-}
-
-function AuditIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
-    </svg>
-  );
-}
-
-function ReportIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
-    </svg>
-  );
-}
-
-function NotificationIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-    </svg>
   );
 }

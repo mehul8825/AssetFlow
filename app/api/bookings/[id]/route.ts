@@ -28,6 +28,14 @@ export async function PUT(
     } else if (action === 'complete') {
          if (!["Admin", "Asset Manager"].includes(user.role)) return Response.json({ error: "Forbidden" }, { status: 403 });
          BookingModel.updateStatus(bookingId, 'Completed');
+    } else if (action === 'approve') {
+         if (!["Admin", "Asset Manager"].includes(user.role)) return Response.json({ error: "Forbidden" }, { status: 403 });
+         BookingModel.updateStatus(bookingId, 'Upcoming');
+         ActivityModel.log(user.id, 'APPROVE', 'Booking', bookingId, `Approved booking ${bookingId}`);
+    } else if (action === 'reject') {
+         if (!["Admin", "Asset Manager"].includes(user.role)) return Response.json({ error: "Forbidden" }, { status: 403 });
+         BookingModel.updateStatus(bookingId, 'Rejected');
+         ActivityModel.log(user.id, 'REJECT', 'Booking', bookingId, `Rejected booking ${bookingId}`);
     }
 
     return Response.json({ message: `Booking ${action}ed` });

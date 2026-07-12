@@ -11,8 +11,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { format, isBefore } from "date-fns";
+import { QRCodeSVG } from "qrcode.react";
+import { QrCode, Maximize } from "lucide-react";
 
 const statusColors: Record<string, string> = {
+  Pending: "bg-orange-500/10 text-orange-600 border-orange-500/20",
+  Rejected: "bg-red-500/10 text-red-600 border-red-500/20",
   Upcoming: "bg-blue-500/10 text-blue-600 border-blue-500/20",
   Ongoing: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
   Completed: "bg-zinc-500/10 text-zinc-600 border-zinc-500/20",
@@ -25,6 +29,7 @@ export default function BookingsPage() {
   const [assets, setAssets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [qrBooking, setQrBooking] = useState<any | null>(null);
   
   const [form, setForm] = useState({
     assetId: "",
@@ -48,7 +53,7 @@ export default function BookingsPage() {
     const updatedBookings = (bRes.bookings || []).map((b: any) => {
         const start = new Date(b.startTime);
         const end = new Date(b.endTime);
-        if (b.status !== "Cancelled") {
+        if (!["Cancelled", "Pending", "Rejected"].includes(b.status)) {
             if (isBefore(end, now)) b.status = "Completed";
             else if (isBefore(start, now) && isBefore(now, end)) b.status = "Ongoing";
             else b.status = "Upcoming";
@@ -98,6 +103,17 @@ export default function BookingsPage() {
     const data = await res.json();
     if (!res.ok) { toast.error(data.error); return; }
     toast.success("Booking cancelled.");
+    fetchData();
+  };
+
+  const manageBooking = async (id: number, action: 'approve' | 'reject') => {
+    const res = await fetch(`/api/bookings/${id}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action })
+    });
+    const data = await res.json();
+    if (!res.ok) { toast.error(data.error); return; }
+    toast.success(`Booking ${action}d.`);
     fetchData();
   };
 
@@ -158,16 +174,57 @@ export default function BookingsPage() {
         </Dialog>
       </div>
 
+      <Dialog open={!!qrBooking} onOpenChange={(open) => !open && setQrBooking(null)}>
+        <DialogContent className="sm:max-w-sm text-center flex flex-col items-center">
+          <DialogHeader>
+            <DialogTitle>Booking QR Code</DialogTitle>
+          </DialogHeader>
+          {qrBooking && (
+            <>
+              <p className="text-sm text-muted-foreground mb-4">Scan this code to verify booking details.</p>
+              <div className="p-4 bg-white border border-border shadow-sm rounded-2xl mb-2 flex items-center justify-center">
+                <QRCodeSVG 
+                  value={JSON.stringify({ bookingId: qrBooking.id, assetId: qrBooking.assetId })} 
+                  size={200}
+                  level="H"
+                  includeMargin={false}
+                />
+              </div>
+              <div className="w-full bg-muted/50 rounded-xl p-4 border border-border text-left mt-4">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mb-1">Booking Info</p>
+                <p className="font-medium">{qrBooking.assetName || "Resource"}</p>
+                <p className="font-mono text-sm text-primary mt-1">By: {qrBooking.bookedByName || "User"}</p>
+                <p className="font-mono text-sm text-muted-foreground mt-1">
+                  {format(new Date(qrBooking.startTime), "MMM d, h:mm a")} - {format(new Date(qrBooking.endTime), "h:mm a")}
+                </p>
+              </div>
+              <Button variant="secondary" className="w-full mt-4 gap-2">
+                <Maximize className="h-4 w-4" /> Print Ticket
+              </Button>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {bookings.map((b) => {
             const isOwner = b.bookedByEmployeeId === user?.id;
-            const canCancel = (isOwner || ["Admin", "Asset Manager", "Department Head"].includes(user?.role || "")) && b.status === "Upcoming";
+            const canCancel = (isOwner || ["Admin", "Asset Manager", "Department Head"].includes(user?.role || "")) && ["Upcoming", "Pending"].includes(b.status);
+            const canApprove = ["Admin", "Asset Manager"].includes(user?.role || "") && b.status === "Pending";
+            const showQr = !["Pending", "Rejected", "Cancelled"].includes(b.status);
 
             return (
                 <div key={b.id} className="rounded-xl border border-border bg-card p-5">
                     <div className="mb-3 flex items-start justify-between">
                         <div>
-                            <h3 className="font-semibold">{b.title}</h3>
+                            <h3 className="font-semibold flex items-center gap-2">
+                                {b.title}
+                                {showQr && (
+                                  <button onClick={() => setQrBooking(b)} className="text-muted-foreground hover:text-primary transition-colors" title="View QR">
+                                      <QrCode className="h-4 w-4" />
+                                  </button>
+                                )}
+                            </h3>
                             <p className="text-xs text-muted-foreground">{b.assetName} · {b.location}</p>
                         </div>
                         <Badge variant="outline" className={`ml-2 shrink-0 ${statusColors[b.status]}`}>{b.status}</Badge>
@@ -183,11 +240,23 @@ export default function BookingsPage() {
                         {b.description && <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{b.description}</p>}
                     </div>
                     
-                    {canCancel && (
-                        <Button variant="outline" size="sm" className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => cancelBooking(b.id)}>
-                            Cancel Booking
-                        </Button>
-                    )}
+                    <div className="flex flex-col gap-2">
+                      {canApprove && (
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" className="w-full text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700" onClick={() => manageBooking(b.id, 'approve')}>
+                              Approve
+                          </Button>
+                          <Button variant="outline" size="sm" className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => manageBooking(b.id, 'reject')}>
+                              Reject
+                          </Button>
+                        </div>
+                      )}
+                      {canCancel && (
+                          <Button variant="outline" size="sm" className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => cancelBooking(b.id)}>
+                              Cancel Booking
+                          </Button>
+                      )}
+                    </div>
                 </div>
             );
         })}
