@@ -121,10 +121,10 @@ export default function BookingsPage() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="font-heading text-2xl font-bold tracking-tight">Resource Bookings</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Book shared resources like meeting rooms and vehicles.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Facility & Resource Bookings</h1>
+          <p className="mt-2 text-muted-foreground">Book shared company resources like meeting rooms and vehicles.</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild><Button>+ New Booking</Button></DialogTrigger>

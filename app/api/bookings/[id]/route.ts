@@ -31,6 +31,13 @@ export async function PUT(
     } else if (action === 'approve') {
          if (!["Admin", "Asset Manager"].includes(user.role)) return Response.json({ error: "Forbidden" }, { status: 403 });
          BookingModel.updateStatus(bookingId, 'Upcoming');
+         
+         const asset = (await import("@/models/asset.model")).AssetModel.getById(booking.asset_id);
+         
+         let message = `Your booking for ${asset?.name || 'resource'} has been approved.`;
+         
+         (await import("@/models/notification.model")).NotificationModel.create(booking.booked_by_employee_id, 'Booking Approved', message, 'BOOKING_APPROVED', '/dashboard');
+         
          ActivityModel.log(user.id, 'APPROVE', 'Booking', bookingId, `Approved booking ${bookingId}`);
     } else if (action === 'reject') {
          if (!["Admin", "Asset Manager"].includes(user.role)) return Response.json({ error: "Forbidden" }, { status: 403 });

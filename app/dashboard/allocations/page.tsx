@@ -122,10 +122,10 @@ export default function AllocationsPage() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="font-heading text-2xl font-bold tracking-tight">Asset Allocations</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Manage who holds what, with conflict handling.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Asset Requests & Allocations</h1>
+          <p className="mt-2 text-muted-foreground">Manage personal asset assignments and requests</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {canAllocate && (
@@ -262,12 +262,12 @@ export default function AllocationsPage() {
                     <p>By: {a.allocatedByName} · {new Date(a.allocationDate).toLocaleDateString()}</p>
                     {a.expectedReturnDate && <p>Return by: {new Date(a.expectedReturnDate).toLocaleDateString()}</p>}
                   </div>
-                  {canAllocate && (
+                  {(canAllocate || user?.id === a.allocatedToEmployeeId) && (
                     <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => {
                       setSelectedAlloc(a);
                       setReturnForm({ returnCondition: "Good", returnNotes: "" });
                       setReturnDialog(true);
-                    }}>Mark Returned</Button>
+                    }}>Return Asset</Button>
                   )}
                 </div>
               );

@@ -49,7 +49,7 @@ export async function PUT(
         }
 
         NotificationModel.create(transfer.requested_by_employee_id, 'Transfer Approved', `Your transfer request for ${transfer.assetTag} was approved.`, 'TRANSFER_APPROVED', '/dashboard/allocations');
-        NotificationModel.create(transfer.to_employee_id, 'Asset Assigned', `You have been assigned asset: ${transfer.assetName} (${transfer.assetTag}) via transfer.`, 'ASSET_ASSIGNED', '/dashboard/assets');
+        NotificationModel.create(transfer.to_employee_id, 'Asset Assigned', `You have been assigned asset: ${transfer.assetName} (${transfer.assetTag}) via transfer. The asset price will be deducted from your salary.`, 'ASSET_ASSIGNED', '/dashboard/assets');
 
     } else if (action === 'Reject') {
         TransferModel.updateStatus(transferId, 'Rejected', user.id, rejectionReason);

@@ -45,7 +45,7 @@ export function NotificationWatcher() {
     };
 
     fetchNotifications();
-    const intervalId = setInterval(fetchNotifications, 15000);
+    const intervalId = setInterval(fetchNotifications, 3000);
 
     return () => clearInterval(intervalId);
   }, [user]);

@@ -13,15 +13,29 @@ export async function PUT(
   try {
     const user = await getCurrentUser();
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
-    if (!["Admin", "Asset Manager"].includes(user.role))
-        return Response.json({ error: "Forbidden" }, { status: 403 });
+    // Role checks moved below after fetching request
 
     const { id } = await params;
     const reqId = parseInt(id);
-    const { action, assignedTechnician, resolutionNotes } = await request.json();
+    const { action, assignedTechnician, resolutionNotes, cost } = await request.json();
 
     const mReq = MaintenanceModel.getById(reqId);
     if (!mReq) return Response.json({ error: "Request not found" }, { status: 404 });
+
+    const isManager = ["Admin", "Asset Manager"].includes(user.role);
+    const isRequester = mReq.requested_by_employee_id === user.id;
+
+    if (!isManager && !isRequester) {
+        return Response.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    if (['approve', 'reject'].includes(action) && !isManager) {
+        return Response.json({ error: "Forbidden: Only managers can approve or reject" }, { status: 403 });
+    }
+
+    if (['assign', 'start', 'resolve'].includes(action) && !isRequester) {
+        return Response.json({ error: "Forbidden: Only the requester can execute this request" }, { status: 403 });
+    }
 
     if (action === 'approve') {
         MaintenanceModel.updateStatus(reqId, 'Approved', { approvedByEmployeeId: user.id });
@@ -37,11 +51,16 @@ export async function PUT(
     } else if (action === 'start') {
         MaintenanceModel.updateStatus(reqId, 'In Progress');
     } else if (action === 'resolve') {
-        MaintenanceModel.updateStatus(reqId, 'Resolved', { resolutionNotes });
+        MaintenanceModel.updateStatus(reqId, 'Resolved', { resolutionNotes, cost });
         const activeHolder = (await import("@/models/allocation.model")).AllocationModel.getActiveAllocationHolder(mReq.asset_id);
         AssetModel.updateStatus(mReq.asset_id, activeHolder ? 'Allocated' : 'Available');
-        NotificationModel.create(mReq.requested_by_employee_id, 'Maintenance Resolved', `Your maintenance request "${mReq.title}" has been resolved.`, 'MAINTENANCE_UPDATE');
-        ActivityModel.log(user.id, 'MAINTENANCE_RESOLVE', 'Asset', mReq.asset_id, `Resolved maintenance: ${mReq.title}. Notes: ${resolutionNotes}`);
+        
+        // Notify managers that it's resolved
+        const managers = (await import("@/models/employee.model")).EmployeeModel.getManagers();
+        for (const manager of managers) {
+            NotificationModel.create(manager.id, 'Maintenance Resolved', `Maintenance request "${mReq.title}" has been resolved by the requester.`, 'MAINTENANCE_UPDATE');
+        }
+        ActivityModel.log(user.id, 'MAINTENANCE_RESOLVE', 'Asset', mReq.asset_id, `Resolved maintenance: ${mReq.title}. Cost: $${cost}. Notes: ${resolutionNotes}`);
     } else {
          return Response.json({ error: "Invalid action" }, { status: 400 });
     }

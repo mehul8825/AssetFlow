@@ -30,7 +30,7 @@ export class BookingModel {
       const db = getDb();
       return db.prepare(
         `SELECT id, title, start_time, end_time FROM resource_bookings
-         WHERE asset_id = ? AND status IN ('Upcoming', 'Ongoing', 'Pending')
+         WHERE asset_id = ? AND status IN ('Upcoming', 'Ongoing')
          AND start_time < ? AND end_time > ?`
       ).get(assetId, endTime, startTime) as any;
   }
@@ -39,7 +39,7 @@ export class BookingModel {
     const db = getDb();
     const result = db.prepare(
       `INSERT INTO resource_bookings (asset_id, booked_by_employee_id, title, description, start_time, end_time, status)
-       VALUES (?, ?, ?, ?, ?, ?, 'Pending')`
+       VALUES (?, ?, ?, ?, ?, ?, 'Upcoming')`
     ).run(data.assetId, data.bookedByEmployeeId, data.title, data.description || null, data.startTime, data.endTime);
     
     return result.lastInsertRowid as number;

@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
         ActivityModel.log(user.id, 'ALLOCATE', 'Asset', assetId, `Allocated ${asset.asset_tag} to ${employeeId ? 'Employee '+employeeId : 'Department '+departmentId}`);
 
         if (employeeId) {
-            NotificationModel.create(employeeId, 'Asset Assigned', `You have been assigned asset: ${asset.name} (${asset.asset_tag})`, 'ASSET_ASSIGNED', '/dashboard/assets');
+            NotificationModel.create(employeeId, 'Asset Assigned', `You have been assigned asset: ${asset.name} (${asset.asset_tag}). The asset price will be deducted from your salary.`, 'ASSET_ASSIGNED', '/dashboard/assets');
         }
         return allocationId;
     });

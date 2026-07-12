@@ -40,7 +40,8 @@ import {
   LogOut,
   Trophy,
   Network,
-  User
+  User,
+  Activity
 } from "lucide-react";
 
 const navItems = [
@@ -51,33 +52,9 @@ const navItems = [
     roles: ["Admin", "Asset Manager", "Department Head", "Employee"],
   },
   {
-    title: "Organization",
-    href: "/dashboard/organization",
-    icon: Building2,
-    roles: ["Admin"],
-  },
-  {
     title: "Assets",
     href: "/dashboard/assets",
     icon: Package,
-    roles: ["Admin", "Asset Manager", "Department Head", "Employee"],
-  },
-  {
-    title: "Allocations",
-    href: "/dashboard/allocations",
-    icon: ClipboardList,
-    roles: ["Admin", "Asset Manager", "Department Head", "Employee"],
-  },
-  {
-    title: "Bookings",
-    href: "/dashboard/bookings",
-    icon: CalendarRange,
-    roles: ["Admin", "Asset Manager", "Department Head", "Employee"],
-  },
-  {
-    title: "Leaderboard",
-    href: "/dashboard/leaderboard",
-    icon: Trophy,
     roles: ["Admin", "Asset Manager", "Department Head", "Employee"],
   },
   {
@@ -87,10 +64,28 @@ const navItems = [
     roles: ["Admin", "Asset Manager", "Department Head"],
   },
   {
+    title: "Asset Requests",
+    href: "/dashboard/allocations",
+    icon: ClipboardList,
+    roles: ["Admin", "Asset Manager", "Department Head", "Employee"],
+  },
+  {
+    title: "Facility Bookings",
+    href: "/dashboard/bookings",
+    icon: CalendarRange,
+    roles: ["Admin", "Asset Manager", "Department Head", "Employee"],
+  },
+  {
     title: "Maintenance",
     href: "/dashboard/maintenance",
     icon: Wrench,
     roles: ["Admin", "Asset Manager", "Department Head", "Employee"],
+  },
+  {
+    title: "AI Health",
+    href: "/dashboard/predictive-health",
+    icon: Activity,
+    roles: ["Admin", "Asset Manager", "Department Head"],
   },
   {
     title: "Audits",
@@ -99,10 +94,22 @@ const navItems = [
     roles: ["Admin", "Asset Manager"],
   },
   {
+    title: "Leaderboard",
+    href: "/dashboard/leaderboard",
+    icon: Trophy,
+    roles: ["Admin", "Asset Manager", "Department Head", "Employee"],
+  },
+  {
     title: "Reports",
     href: "/dashboard/reports",
     icon: FileText,
     roles: ["Admin", "Asset Manager", "Department Head"],
+  },
+  {
+    title: "Organization",
+    href: "/dashboard/organization",
+    icon: Building2,
+    roles: ["Admin"],
   },
   {
     title: "Activity",

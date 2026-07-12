@@ -89,7 +89,7 @@ export default function ProfilePage() {
               <Label className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                 <HugeiconsIcon icon={Building04Icon} size={14} /> Department
               </Label>
-              <Input value={profile.department_name || "No Department"} readOnly className="bg-muted/50 font-medium" />
+              <Input value={profile.departmentName || "No Department"} readOnly className="bg-muted/50 font-medium" />
             </div>
           </div>
 

@@ -6,50 +6,61 @@ export class MaintenanceModel {
     let query = `
       SELECT mr.id, mr.asset_id as assetId, mr.title, mr.description, mr.priority, mr.status,
              mr.assigned_technician as assignedTechnician, mr.resolution_notes as resolutionNotes,
+             mr.quotations, mr.cost,
              mr.created_at as createdAt, mr.updated_at as updatedAt,
+             mr.requested_by_employee_id as requestedByEmployeeId,
+             mr.assigned_to_employee_id as assignedToEmployeeId,
              a.name as assetName, a.asset_tag as assetTag,
-             re.name as requestedByName, ae.name as approvedByName
+             re.name as requestedByName, ae.name as approvedByName,
+             te.name as assignedToName
       FROM maintenance_requests mr
       JOIN assets a ON a.id = mr.asset_id
-      JOIN employees re ON re.id = mr.requested_by_employee_id
+      LEFT JOIN employees re ON re.id = mr.requested_by_employee_id
       LEFT JOIN employees ae ON ae.id = mr.approved_by_employee_id
+      LEFT JOIN employees te ON te.id = mr.assigned_to_employee_id
       WHERE 1=1
     `;
     const params: any[] = [];
     if (filters?.assetId) { query += " AND mr.asset_id = ?"; params.push(filters.assetId); }
     query += " ORDER BY mr.created_at DESC";
 
-    return db.prepare(query).all(...params);
+    const rows = db.prepare(query).all(...params) as any[];
+    return rows.map(r => ({
+        ...r,
+        quotations: r.quotations ? JSON.parse(r.quotations) : null
+    }));
   }
 
   static getById(id: number) {
     const db = getDb();
-    return db.prepare(
+    const row = db.prepare(
       `SELECT mr.*, a.name as assetName, a.asset_tag as assetTag 
        FROM maintenance_requests mr JOIN assets a ON a.id = mr.asset_id WHERE mr.id = ?`
     ).get(id) as any;
+    if (row && row.quotations) row.quotations = JSON.parse(row.quotations);
+    return row;
   }
 
-  static create(data: { assetId: number; requestedByEmployeeId: number; title: string; description?: string; priority?: string }) {
+  static create(data: { assetId: number; requestedByEmployeeId: number; title: string; description?: string; priority?: string; quotations?: string }) {
     const db = getDb();
     const result = db.prepare(
-      `INSERT INTO maintenance_requests (asset_id, requested_by_employee_id, title, description, priority, status)
-       VALUES (?, ?, ?, ?, ?, 'Pending')`
-    ).run(data.assetId, data.requestedByEmployeeId, data.title, data.description || null, data.priority || 'Medium');
+      `INSERT INTO maintenance_requests (asset_id, requested_by_employee_id, title, description, priority, quotations, status)
+       VALUES (?, ?, ?, ?, ?, ?, 'Pending')`
+    ).run(data.assetId, data.requestedByEmployeeId, data.title, data.description || null, data.priority || 'Medium', data.quotations || null);
     
     return result.lastInsertRowid as number;
   }
 
-  static updateStatus(id: number, status: string, data?: { approvedByEmployeeId?: number; assignedTechnician?: string; resolutionNotes?: string }) {
+  static updateStatus(id: number, status: string, data?: { approvedByEmployeeId?: number; assignedTechnician?: string; assignedToEmployeeId?: number | null; resolutionNotes?: string; cost?: number }) {
     const db = getDb();
     if (status === 'Approved' || status === 'Rejected') {
          db.prepare("UPDATE maintenance_requests SET status = ?, approved_by_employee_id = ?, updated_at = datetime('now') WHERE id = ?").run(status, data?.approvedByEmployeeId, id);
     } else if (status === 'Assigned') {
-         db.prepare("UPDATE maintenance_requests SET status = 'Assigned', assigned_technician = ?, updated_at = datetime('now') WHERE id = ?").run(data?.assignedTechnician, id);
+         db.prepare("UPDATE maintenance_requests SET status = 'Assigned', assigned_technician = ?, assigned_to_employee_id = ?, updated_at = datetime('now') WHERE id = ?").run(data?.assignedTechnician, data?.assignedToEmployeeId || null, id);
     } else if (status === 'In Progress') {
          db.prepare("UPDATE maintenance_requests SET status = 'In Progress', updated_at = datetime('now') WHERE id = ?").run(id);
     } else if (status === 'Resolved') {
-         db.prepare("UPDATE maintenance_requests SET status = 'Resolved', resolution_notes = ?, updated_at = datetime('now') WHERE id = ?").run(data?.resolutionNotes || null, id);
+         db.prepare("UPDATE maintenance_requests SET status = 'Resolved', resolution_notes = ?, cost = ?, updated_at = datetime('now') WHERE id = ?").run(data?.resolutionNotes || null, data?.cost || 0, id);
     }
   }
 }

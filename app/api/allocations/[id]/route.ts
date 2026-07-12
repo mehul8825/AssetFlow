@@ -13,8 +13,7 @@ export async function PUT(
   try {
     const user = await getCurrentUser();
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
-    if (!["Admin", "Asset Manager", "Department Head"].includes(user.role))
-        return Response.json({ error: "Forbidden" }, { status: 403 });
+    // Role check moved below
 
     const { id } = await params;
     const allocationId = parseInt(id);
@@ -23,6 +22,13 @@ export async function PUT(
     const allocation = AllocationModel.getById(allocationId);
     if (!allocation || allocation.status !== 'Active') {
         return Response.json({ error: "Active allocation not found" }, { status: 404 });
+    }
+
+    const isManager = ["Admin", "Asset Manager", "Department Head"].includes(user.role);
+    const isAllocatedUser = allocation.allocated_to_employee_id === user.id;
+
+    if (!isManager && !isAllocatedUser) {
+        return Response.json({ error: "Forbidden" }, { status: 403 });
     }
 
     if (action === 'return') {
