@@ -26,13 +26,17 @@ export class BookingModel {
     return db.prepare("SELECT * FROM resource_bookings WHERE id = ?").get(id) as any;
   }
 
-  static checkOverlap(assetId: number, startTime: string, endTime: string) {
+  static checkOverlap(assetId: number, startTime: string, endTime: string, excludeBookingId?: number) {
       const db = getDb();
-      return db.prepare(
-        `SELECT id, title, start_time, end_time FROM resource_bookings
-         WHERE asset_id = ? AND status IN ('Upcoming', 'Ongoing')
-         AND start_time < ? AND end_time > ?`
-      ).get(assetId, endTime, startTime) as any;
+      let query = `SELECT id, title, start_time, end_time FROM resource_bookings
+                   WHERE asset_id = ? AND status IN ('Upcoming', 'Ongoing')
+                   AND start_time < ? AND end_time > ?`;
+      const params = [assetId, endTime, startTime];
+      if (excludeBookingId) {
+          query += " AND id != ?";
+          params.push(excludeBookingId);
+      }
+      return db.prepare(query).get(...params) as any;
   }
 
   static create(data: { assetId: number; bookedByEmployeeId: number; title: string; description?: string; startTime: string; endTime: string }) {
@@ -43,6 +47,14 @@ export class BookingModel {
     ).run(data.assetId, data.bookedByEmployeeId, data.title, data.description || null, data.startTime, data.endTime);
     
     return result.lastInsertRowid as number;
+  }
+
+  static update(id: number, data: { title: string; description?: string; startTime: string; endTime: string }) {
+      const db = getDb();
+      db.prepare(
+          `UPDATE resource_bookings SET title = ?, description = ?, start_time = ?, end_time = ?, updated_at = datetime('now')
+           WHERE id = ?`
+      ).run(data.title, data.description || null, data.startTime, data.endTime, id);
   }
 
   static updateStatus(id: number, status: string) {

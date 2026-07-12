@@ -38,7 +38,8 @@ export async function PUT(
         MaintenanceModel.updateStatus(reqId, 'In Progress');
     } else if (action === 'resolve') {
         MaintenanceModel.updateStatus(reqId, 'Resolved', { resolutionNotes });
-        AssetModel.updateStatus(mReq.asset_id, 'Available');
+        const activeHolder = (await import("@/models/allocation.model")).AllocationModel.getActiveAllocationHolder(mReq.asset_id);
+        AssetModel.updateStatus(mReq.asset_id, activeHolder ? 'Allocated' : 'Available');
         NotificationModel.create(mReq.requested_by_employee_id, 'Maintenance Resolved', `Your maintenance request "${mReq.title}" has been resolved.`, 'MAINTENANCE_UPDATE');
         ActivityModel.log(user.id, 'MAINTENANCE_RESOLVE', 'Asset', mReq.asset_id, `Resolved maintenance: ${mReq.title}. Notes: ${resolutionNotes}`);
     } else {

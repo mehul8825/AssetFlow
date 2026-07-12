@@ -9,6 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { format, isBefore } from "date-fns";
 
@@ -25,7 +29,13 @@ export default function BookingsPage() {
   const [assets, setAssets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingBooking, setEditingBooking] = useState<any>(null);
   
+  // Custom Autocomplete State
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
+
   const [form, setForm] = useState({
     assetId: "",
     title: "",
@@ -65,28 +75,68 @@ export default function BookingsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.assetId) {
+        toast.error("Please select a resource from the search dropdown.");
+        return;
+    }
     
     const startDateTime = new Date(`${form.startDate}T${form.startTime}`).toISOString();
     const endDateTime = new Date(`${form.endDate}T${form.endTime}`).toISOString();
 
-    const res = await fetch("/api/bookings", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    const url = editingBooking ? `/api/bookings/${editingBooking.id}` : "/api/bookings";
+    const method = editingBooking ? "PUT" : "POST";
+    const payload = editingBooking ? {
+        action: "edit",
+        title: form.title,
+        description: form.description,
+        startTime: startDateTime,
+        endTime: endDateTime,
+    } : {
         assetId: parseInt(form.assetId),
         title: form.title,
         description: form.description,
         startTime: startDateTime,
         endTime: endDateTime,
-      }),
+    };
+
+    const res = await fetch(url, {
+      method, headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
     });
     
     const data = await res.json();
     if (!res.ok) { toast.error(data.error); return; }
     
-    toast.success("Booking confirmed!");
+    toast.success(editingBooking ? "Booking updated!" : "Booking confirmed!");
     setDialogOpen(false);
+    setEditingBooking(null);
     setForm({ assetId: "", title: "", description: "", startDate: "", startTime: "", endDate: "", endTime: "" });
+    setSearchTerm("");
     fetchData();
+  };
+
+  const handleEditOpen = (b: any) => {
+      setEditingBooking(b);
+      const start = new Date(b.startTime);
+      const end = new Date(b.endTime);
+      setForm({
+          assetId: b.assetId.toString(),
+          title: b.title,
+          description: b.description || "",
+          startDate: format(start, "yyyy-MM-dd"),
+          startTime: format(start, "HH:mm"),
+          endDate: format(end, "yyyy-MM-dd"),
+          endTime: format(end, "HH:mm"),
+      });
+      setSearchTerm(b.assetName);
+      setDialogOpen(true);
+  };
+
+  const handleNewOpen = () => {
+      setEditingBooking(null);
+      setForm({ assetId: "", title: "", description: "", startDate: "", startTime: "", endDate: "", endTime: "" });
+      setSearchTerm("");
+      setDialogOpen(true);
   };
 
   const cancelBooking = async (id: number) => {
@@ -110,19 +160,91 @@ export default function BookingsPage() {
           <h1 className="font-heading text-2xl font-bold tracking-tight">Resource Bookings</h1>
           <p className="mt-1 text-sm text-muted-foreground">Book shared resources like meeting rooms and vehicles.</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild><Button>+ New Booking</Button></DialogTrigger>
+        <Dialog open={dialogOpen} onOpenChange={(open) => {
+            setDialogOpen(open);
+            if (!open) { setEditingBooking(null); setSearchTerm(""); }
+        }}>
+          <Button onClick={handleNewOpen}>+ New Booking</Button>
           <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
-            <DialogHeader><DialogTitle>Book Resource</DialogTitle></DialogHeader>
+            <DialogHeader>
+              <DialogTitle>{editingBooking ? "Edit Booking" : "Book Resource"}</DialogTitle>
+            </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
+              <div className="space-y-2 relative">
                 <Label>Resource *</Label>
-                <Select value={form.assetId} onValueChange={(v) => setForm((p) => ({ ...p, assetId: v }))} required>
-                  <SelectTrigger><SelectValue placeholder="Select resource" /></SelectTrigger>
-                  <SelectContent>{assets.filter((a: any) => a.status === "Available").map((a: any) => (
-                    <SelectItem key={a.id} value={a.id.toString()}>{a.name}</SelectItem>
-                  ))}</SelectContent>
-                </Select>
+                <Input
+                  type="text"
+                  placeholder={editingBooking ? "Resource cannot be changed during edit" : "Type to search resource..."}
+                  value={searchTerm}
+                  disabled={!!editingBooking}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setShowDropdown(true);
+                    setFocusedIndex(-1);
+                    setForm((p) => ({ ...p, assetId: "" }));
+                  }}
+                  onFocus={() => {
+                    if (!editingBooking) setShowDropdown(true);
+                  }}
+                  onBlur={() => {
+                    setTimeout(() => setShowDropdown(false), 250);
+                  }}
+                  onKeyDown={(e) => {
+                    if (editingBooking) return;
+                    const filtered = assets.filter((a: any) => 
+                        !['Under Maintenance', 'Lost', 'Retired', 'Disposed'].includes(a.status) &&
+                        (a.name.toLowerCase().includes(searchTerm.toLowerCase()) || a.assetTag.toLowerCase().includes(searchTerm.toLowerCase()))
+                    );
+                    if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      setFocusedIndex((prev) => (prev + 1) % filtered.length);
+                    } else if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      setFocusedIndex((prev) => (prev - 1 + filtered.length) % filtered.length);
+                    } else if (e.key === "Enter") {
+                      e.preventDefault();
+                      if (focusedIndex >= 0 && focusedIndex < filtered.length) {
+                        const selected = filtered[focusedIndex];
+                        setForm((p) => ({ ...p, assetId: selected.id.toString() }));
+                        setSearchTerm(selected.name);
+                        setShowDropdown(false);
+                      }
+                    }
+                  }}
+                  required
+                />
+                {showDropdown && !editingBooking && (
+                  <ul className="absolute z-50 w-full bg-popover text-popover-foreground border border-border rounded-md shadow-md max-h-60 overflow-y-auto mt-1 py-1">
+                    {assets.filter((a: any) => 
+                        !['Under Maintenance', 'Lost', 'Retired', 'Disposed'].includes(a.status) &&
+                        (a.name.toLowerCase().includes(searchTerm.toLowerCase()) || a.assetTag.toLowerCase().includes(searchTerm.toLowerCase()))
+                    ).map((a: any, idx: number) => {
+                        const isFocused = idx === focusedIndex;
+                        return (
+                          <li
+                            key={a.id}
+                            className={cn(
+                              "px-3 py-2 text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground",
+                              isFocused && "bg-accent text-accent-foreground"
+                            )}
+                            onMouseDown={() => {
+                              setForm((p) => ({ ...p, assetId: a.id.toString() }));
+                              setSearchTerm(a.name);
+                              setShowDropdown(false);
+                            }}
+                          >
+                            {a.name} ({a.assetTag})
+                          </li>
+                        );
+                    })}
+                    {assets.filter((a: any) => 
+                        !['Under Maintenance', 'Lost', 'Retired', 'Disposed'].includes(a.status) &&
+                        (a.name.toLowerCase().includes(searchTerm.toLowerCase()) || a.assetTag.toLowerCase().includes(searchTerm.toLowerCase()))
+                    ).length === 0 && (
+                      <li className="px-3 py-2 text-sm text-muted-foreground text-center">No resources found</li>
+                    )}
+                  </ul>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Title *</Label>
@@ -161,7 +283,7 @@ export default function BookingsPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {bookings.map((b) => {
             const isOwner = b.bookedByEmployeeId === user?.id;
-            const canCancel = (isOwner || ["Admin", "Asset Manager", "Department Head"].includes(user?.role || "")) && b.status === "Upcoming";
+            const canCancel = (isOwner || ["Admin", "Asset Manager", "Department Head"].includes(user?.role || "")) && (b.status === "Upcoming" || b.status === "Ongoing");
 
             return (
                 <div key={b.id} className="rounded-xl border border-border bg-card p-5">
@@ -184,9 +306,14 @@ export default function BookingsPage() {
                     </div>
                     
                     {canCancel && (
-                        <Button variant="outline" size="sm" className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => cancelBooking(b.id)}>
-                            Cancel Booking
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditOpen(b)}>
+                            Edit Booking
                         </Button>
+                        <Button variant="outline" size="sm" className="flex-1 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => cancelBooking(b.id)}>
+                            Cancel
+                        </Button>
+                      </div>
                     )}
                 </div>
             );

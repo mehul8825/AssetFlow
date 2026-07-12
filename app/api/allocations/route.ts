@@ -43,20 +43,51 @@ export async function POST(request: NextRequest) {
     }
 
     const asset = AssetModel.getById(assetId);
-    if (!asset || asset.status !== 'Available') {
-        return Response.json({ error: "Asset is not available for allocation" }, { status: 400 });
+    if (!asset || (asset.status !== 'Available' && asset.status !== 'Reserved')) {
+        return Response.json({ error: "Asset is not available for allocation. Current status: " + (asset?.status || 'Unknown') }, { status: 400 });
     }
 
-    const allocationId = AllocationModel.create({
-        assetId, employeeId, departmentId, allocatedByEmployeeId: user.id, expectedReturnDate
+    if (employeeId) {
+        const emp = EmployeeModel.getById(employeeId);
+        if (!emp || emp.status !== 'Active') {
+            return Response.json({ error: "Cannot allocate to an inactive or non-existent employee." }, { status: 400 });
+        }
+    }
+
+    if (departmentId) {
+        const dept = (await import("@/models/department.model")).DepartmentModel.getById(departmentId);
+        if (!dept || dept.status !== 'Active') {
+             return Response.json({ error: "Cannot allocate to an inactive or non-existent department." }, { status: 400 });
+        }
+    }
+
+    const activeHolder = AllocationModel.getActiveAllocationHolder(assetId);
+    if (activeHolder) {
+        return Response.json({ error: `Conflict: Asset is already allocated to ${activeHolder.holderName}` }, { status: 409 });
+    }
+
+    const db = (await import("@/lib/db")).getDb();
+    const tx = db.transaction(() => {
+        const activeCheck = AllocationModel.getActiveAllocationHolder(assetId);
+        if (activeCheck) throw new Error(`Conflict: Asset is already allocated to ${activeCheck.holderName}`);
+
+        const allocationId = AllocationModel.create({
+            assetId, employeeId, departmentId, allocatedByEmployeeId: user.id, expectedReturnDate
+        });
+
+        AssetModel.updateStatus(assetId, 'Allocated');
+        ActivityModel.log(user.id, 'ALLOCATE', 'Asset', assetId, `Allocated ${asset.asset_tag} to ${employeeId ? 'Employee '+employeeId : 'Department '+departmentId}`);
+
+        if (employeeId) {
+            NotificationModel.create(employeeId, 'Asset Assigned', `You have been assigned asset: ${asset.name} (${asset.asset_tag})`, 'ASSET_ASSIGNED', '/dashboard/assets');
+        }
+        return allocationId;
     });
 
-    AssetModel.updateStatus(assetId, 'Allocated');
-
-    ActivityModel.log(user.id, 'ALLOCATE', 'Asset', assetId, `Allocated ${asset.asset_tag} to ${employeeId ? 'Employee '+employeeId : 'Department '+departmentId}`);
-
-    if (employeeId) {
-        NotificationModel.create(employeeId, 'Asset Assigned', `You have been assigned asset: ${asset.name} (${asset.asset_tag})`, 'ASSET_ASSIGNED', '/dashboard/assets');
+    try {
+        tx();
+    } catch (e: any) {
+        return Response.json({ error: e.message }, { status: 409 });
     }
 
     return Response.json({ message: "Asset allocated successfully" }, { status: 201 });

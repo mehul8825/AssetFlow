@@ -28,6 +28,25 @@ export async function PUT(
     } else if (action === 'complete') {
          if (!["Admin", "Asset Manager"].includes(user.role)) return Response.json({ error: "Forbidden" }, { status: 403 });
          BookingModel.updateStatus(bookingId, 'Completed');
+    } else if (action === 'edit') {
+        if (booking.booked_by_employee_id !== user.id && !["Admin", "Asset Manager"].includes(user.role)) {
+            return Response.json({ error: "Forbidden to edit others booking" }, { status: 403 });
+        }
+        const { title, description, startTime, endTime } = await request.json();
+        if (!title || !startTime || !endTime) {
+            return Response.json({ error: "Missing required fields" }, { status: 400 });
+        }
+        const start = new Date(startTime);
+        const end = new Date(endTime);
+        if (start >= end) return Response.json({ error: "End time must be after start time" }, { status: 400 });
+
+        const overlap = BookingModel.checkOverlap(booking.asset_id, startTime, endTime, bookingId);
+        if (overlap) {
+            return Response.json({ error: "Time slot overlaps with an existing booking" }, { status: 409 });
+        }
+
+        BookingModel.update(bookingId, { title, description, startTime, endTime });
+        ActivityModel.log(user.id, 'UPDATE', 'Booking', bookingId, `Updated booking ${bookingId}`);
     }
 
     return Response.json({ message: `Booking ${action}ed` });

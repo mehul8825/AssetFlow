@@ -28,10 +28,18 @@ export async function PUT(
     if (action === 'return') {
         if (!returnCondition) return Response.json({ error: "Return condition is required" }, { status: 400 });
         
-        AllocationModel.updateStatus(allocationId, 'Returned', returnCondition, returnNotes);
-        AssetModel.updateStatus(allocation.asset_id, 'Available');
-        
-        ActivityModel.log(user.id, 'RETURN', 'Asset', allocation.asset_id, `Asset ${allocation.assetTag} returned. Condition: ${returnCondition}`);
+        const db = (await import("@/lib/db")).getDb();
+        const tx = db.transaction(() => {
+            AllocationModel.updateStatus(allocationId, 'Returned', returnCondition, returnNotes);
+            AssetModel.updateStatus(allocation.asset_id, 'Available');
+            ActivityModel.log(user.id, 'RETURN', 'Asset', allocation.asset_id, `Asset ${allocation.assetTag} returned. Condition: ${returnCondition}`);
+        });
+
+        try {
+            tx();
+        } catch (e: any) {
+            return Response.json({ error: e.message }, { status: 500 });
+        }
 
         if (returnCondition === 'Damaged' || returnCondition === 'Poor') {
             const managers = (await import("@/models/employee.model")).EmployeeModel.getManagers();
