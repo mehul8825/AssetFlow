@@ -1,6 +1,9 @@
-import { getDb } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { type NextRequest } from "next/server";
+import { AuditModel } from "@/models/audit.model";
+import { AssetModel } from "@/models/asset.model";
+import { EmployeeModel } from "@/models/employee.model";
+import { NotificationModel } from "@/models/notification.model";
 
 // PUT /api/audits/items/[id]
 export async function PUT(
@@ -15,38 +18,24 @@ export async function PUT(
     const itemId = parseInt(id);
     const { status, notes } = await request.json();
 
-    const db = getDb();
-    
-    // Check if user is an auditor for this cycle or admin
-    const item = db.prepare(
-        `SELECT ai.audit_cycle_id, ai.asset_id FROM audit_items ai WHERE ai.id = ?`
-    ).get(itemId) as any;
-    
+    const item = AuditModel.getItemById(itemId);
     if (!item) return Response.json({ error: "Audit item not found" }, { status: 404 });
 
-    const isAuditor = db.prepare(`SELECT 1 FROM audit_cycle_auditors WHERE audit_cycle_id = ? AND employee_id = ?`).get(item.audit_cycle_id, user.id);
+    const isAuditor = AuditModel.isAuditor(item.audit_cycle_id, user.id);
     if (!isAuditor && !["Admin", "Asset Manager"].includes(user.role)) {
         return Response.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    db.prepare(
-        `UPDATE audit_items SET status = ?, notes = ?, audited_by_employee_id = ?, updated_at = datetime('now') WHERE id = ?`
-    ).run(status, notes || null, user.id, itemId);
+    AuditModel.updateItemStatus(itemId, status, user.id, notes);
 
-    // If marked Missing or Damaged, update asset status and notify
     if (status === 'Missing' || status === 'Damaged') {
-        const newAssetStatus = status === 'Missing' ? 'Lost' : 'Available'; // Or maybe 'Under Maintenance' for Damaged, but let's stick to status updates. Let's just do Lost for missing.
         if (status === 'Missing') {
-             db.prepare("UPDATE assets SET status = 'Lost', updated_at = datetime('now') WHERE id = ?").run(item.asset_id);
+             AssetModel.updateStatus(item.asset_id, 'Lost');
         }
         
-        // Notify Managers
-        const managers = db.prepare("SELECT id FROM employees WHERE role = 'Asset Manager' AND status = 'Active'").all() as any[];
+        const managers = EmployeeModel.getManagers();
         for (const manager of managers) {
-            db.prepare(
-              `INSERT INTO notifications (employee_id, title, message, type, link)
-               VALUES (?, 'Audit Discrepancy Found', ?, 'AUDIT_DISCREPANCY', '/dashboard/audits')`
-            ).run(manager.id, `An asset was marked as ${status} during an audit.`);
+            NotificationModel.create(manager.id, 'Audit Discrepancy Found', `An asset was marked as ${status} during an audit.`, 'AUDIT_DISCREPANCY', '/dashboard/audits');
         }
     }
 

@@ -1,6 +1,8 @@
-import { getDb } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { type NextRequest } from "next/server";
+import { DepartmentModel } from "@/models/department.model";
+import { EmployeeModel } from "@/models/employee.model";
+import { ActivityModel } from "@/models/activity.model";
 
 // PUT /api/departments/[id]
 export async function PUT(
@@ -15,55 +17,23 @@ export async function PUT(
 
     const { id } = await params;
     const deptId = parseInt(id);
-    const { name, description, parentDepartmentId, headEmployeeId, status } =
-      await request.json();
+    const { name, description, parentDepartmentId, headEmployeeId, status } = await request.json();
 
-    const db = getDb();
+    const existing = DepartmentModel.getById(deptId);
+    if (!existing) return Response.json({ error: "Department not found" }, { status: 404 });
 
-    const existing = db.prepare("SELECT id FROM departments WHERE id = ?").get(deptId);
-    if (!existing) {
-      return Response.json({ error: "Department not found" }, { status: 404 });
-    }
-
-    // Check duplicate name (excluding self)
     if (name) {
-      const dup = db
-        .prepare("SELECT id FROM departments WHERE LOWER(name) = LOWER(?) AND id != ?")
-        .get(name.trim(), deptId);
-      if (dup) {
-        return Response.json({ error: "Department name already exists" }, { status: 409 });
-      }
+      const dup = DepartmentModel.getByName(name, deptId);
+      if (dup) return Response.json({ error: "Department name already exists" }, { status: 409 });
     }
 
-    db.prepare(
-      `UPDATE departments
-       SET name = COALESCE(?, name),
-           description = COALESCE(?, description),
-           parent_department_id = ?,
-           head_employee_id = ?,
-           status = COALESCE(?, status),
-           updated_at = datetime('now')
-       WHERE id = ?`
-    ).run(
-      name?.trim() || null,
-      description,
-      parentDepartmentId || null,
-      headEmployeeId || null,
-      status || null,
-      deptId
-    );
+    DepartmentModel.update(deptId, { name, description, parentDepartmentId, headEmployeeId, status });
 
-    // If head changed, update employee role
     if (headEmployeeId) {
-      db.prepare(
-        `UPDATE employees SET role = 'Department Head', department_id = ? WHERE id = ? AND role = 'Employee'`
-      ).run(deptId, headEmployeeId);
+      EmployeeModel.updateRoleAndDepartment(headEmployeeId, 'Department Head', deptId);
     }
 
-    db.prepare(
-      `INSERT INTO activity_logs (employee_id, action, entity_type, entity_id, details)
-       VALUES (?, 'UPDATE', 'Department', ?, ?)`
-    ).run(user.id, deptId, `Updated department ID ${deptId}`);
+    ActivityModel.log(user.id, 'UPDATE', 'Department', deptId, `Updated department ID ${deptId}`);
 
     return Response.json({ message: "Department updated" });
   } catch (error: any) {
@@ -85,25 +55,14 @@ export async function DELETE(
 
     const { id } = await params;
     const deptId = parseInt(id);
-    const db = getDb();
 
-    const dept = db
-      .prepare("SELECT id, status FROM departments WHERE id = ?")
-      .get(deptId) as any;
-    if (!dept) {
-      return Response.json({ error: "Department not found" }, { status: 404 });
-    }
+    const dept = DepartmentModel.getById(deptId);
+    if (!dept) return Response.json({ error: "Department not found" }, { status: 404 });
 
     const newStatus = dept.status === "Active" ? "Inactive" : "Active";
-    db.prepare("UPDATE departments SET status = ?, updated_at = datetime('now') WHERE id = ?").run(
-      newStatus,
-      deptId
-    );
+    DepartmentModel.toggleStatus(deptId, newStatus);
 
-    db.prepare(
-      `INSERT INTO activity_logs (employee_id, action, entity_type, entity_id, details)
-       VALUES (?, 'STATUS_CHANGE', 'Department', ?, ?)`
-    ).run(user.id, deptId, `Department ${deptId} status changed to ${newStatus}`);
+    ActivityModel.log(user.id, 'STATUS_CHANGE', 'Department', deptId, `Department ${deptId} status changed to ${newStatus}`);
 
     return Response.json({ message: `Department ${newStatus === "Active" ? "activated" : "deactivated"}` });
   } catch (error: any) {

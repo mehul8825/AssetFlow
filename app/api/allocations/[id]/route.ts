@@ -1,8 +1,11 @@
-import { getDb } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { type NextRequest } from "next/server";
+import { AllocationModel } from "@/models/allocation.model";
+import { AssetModel } from "@/models/asset.model";
+import { ActivityModel } from "@/models/activity.model";
+import { NotificationModel } from "@/models/notification.model";
 
-// PUT /api/allocations/[id] - Return asset
+// PUT /api/allocations/[id] - Usually for returning an asset
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -10,37 +13,36 @@ export async function PUT(
   try {
     const user = await getCurrentUser();
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    if (!["Admin", "Asset Manager", "Department Head"].includes(user.role))
+        return Response.json({ error: "Forbidden" }, { status: 403 });
 
     const { id } = await params;
-    const allocId = parseInt(id);
-    const { action, returnCondition, returnNotes, status: newStatus } = await request.json();
+    const allocationId = parseInt(id);
+    const { action, returnCondition, returnNotes } = await request.json();
 
-    const db = getDb();
-    const alloc = db.prepare(
-      `SELECT aa.*, a.name as assetName, a.asset_tag as assetTag
-       FROM asset_allocations aa JOIN assets a ON a.id = aa.asset_id WHERE aa.id = ?`
-    ).get(allocId) as any;
-    if (!alloc) return Response.json({ error: "Allocation not found" }, { status: 404 });
-
-    if (action === "return") {
-      db.prepare(
-        `UPDATE asset_allocations SET status = 'Returned', actual_return_date = datetime('now'),
-         return_condition = ?, return_notes = ?, updated_at = datetime('now') WHERE id = ?`
-      ).run(returnCondition || null, returnNotes || null, allocId);
-
-      db.prepare("UPDATE assets SET status = 'Available', updated_at = datetime('now') WHERE id = ?").run(alloc.asset_id);
-
-      db.prepare(
-        `INSERT INTO activity_logs (employee_id, action, entity_type, entity_id, details)
-         VALUES (?, 'RETURN', 'Asset', ?, ?)`
-      ).run(user.id, alloc.asset_id, `Returned ${alloc.assetName} (${alloc.assetTag})`);
-
-      return Response.json({ message: "Asset returned successfully" });
+    const allocation = AllocationModel.getById(allocationId);
+    if (!allocation || allocation.status !== 'Active') {
+        return Response.json({ error: "Active allocation not found" }, { status: 404 });
     }
 
-    return Response.json({ error: "Invalid action" }, { status: 400 });
+    if (action === 'return') {
+        if (!returnCondition) return Response.json({ error: "Return condition is required" }, { status: 400 });
+        
+        AllocationModel.updateStatus(allocationId, 'Returned', returnCondition, returnNotes);
+        AssetModel.updateStatus(allocation.asset_id, 'Available');
+        
+        ActivityModel.log(user.id, 'RETURN', 'Asset', allocation.asset_id, `Asset ${allocation.assetTag} returned. Condition: ${returnCondition}`);
+
+        if (returnCondition === 'Damaged' || returnCondition === 'Poor') {
+            const managers = (await import("@/models/employee.model")).EmployeeModel.getManagers();
+            for (const manager of managers) {
+                NotificationModel.create(manager.id, 'Damaged Asset Returned', `Asset ${allocation.assetTag} was returned in ${returnCondition} condition.`, 'ASSET_DAMAGED', '/dashboard/assets');
+            }
+        }
+    }
+
+    return Response.json({ message: "Allocation updated successfully" });
   } catch (error: any) {
-    console.error("Update allocation error:", error);
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }

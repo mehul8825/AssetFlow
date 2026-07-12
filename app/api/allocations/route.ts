@@ -1,102 +1,66 @@
-import { getDb } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { type NextRequest } from "next/server";
+import { AllocationModel } from "@/models/allocation.model";
+import { AssetModel } from "@/models/asset.model";
+import { ActivityModel } from "@/models/activity.model";
+import { NotificationModel } from "@/models/notification.model";
+import { EmployeeModel } from "@/models/employee.model";
 
 // GET /api/allocations
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-    const db = getDb();
-    const allocations = db.prepare(
-      `SELECT aa.id, aa.asset_id as assetId, aa.allocated_to_employee_id as allocatedToEmployeeId,
-              aa.allocated_to_department_id as allocatedToDepartmentId,
-              aa.allocated_by_employee_id as allocatedByEmployeeId,
-              aa.allocation_date as allocationDate, aa.expected_return_date as expectedReturnDate,
-              aa.actual_return_date as actualReturnDate, aa.return_condition as returnCondition,
-              aa.return_notes as returnNotes, aa.status, aa.created_at as createdAt,
-              a.name as assetName, a.asset_tag as assetTag,
-              e.name as employeeName, d.name as departmentName,
-              ab.name as allocatedByName
-       FROM asset_allocations aa
-       JOIN assets a ON a.id = aa.asset_id
-       LEFT JOIN employees e ON e.id = aa.allocated_to_employee_id
-       LEFT JOIN departments d ON d.id = aa.allocated_to_department_id
-       LEFT JOIN employees ab ON ab.id = aa.allocated_by_employee_id
-       ORDER BY aa.created_at DESC`
-    ).all();
+    const searchParams = request.nextUrl.searchParams;
+    const assetId = searchParams.get("assetId");
 
+    let allocations;
+    if (assetId) {
+        allocations = AllocationModel.getByAssetId(parseInt(assetId));
+    } else {
+        allocations = AllocationModel.getAll();
+    }
+    
     return Response.json({ allocations });
   } catch (error: any) {
-    console.error("Get allocations error:", error);
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
-// POST /api/allocations - Allocate asset
+// POST /api/allocations
 export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
     if (!["Admin", "Asset Manager", "Department Head"].includes(user.role))
-      return Response.json({ error: "Forbidden" }, { status: 403 });
+        return Response.json({ error: "Forbidden" }, { status: 403 });
 
     const { assetId, employeeId, departmentId, expectedReturnDate } = await request.json();
-    if (!assetId) return Response.json({ error: "Asset is required" }, { status: 400 });
-    if (!employeeId && !departmentId)
-      return Response.json({ error: "Employee or department is required" }, { status: 400 });
 
-    const db = getDb();
-
-    // Check asset status - must be Available
-    const asset = db.prepare("SELECT id, name, asset_tag, status FROM assets WHERE id = ?").get(assetId) as any;
-    if (!asset) return Response.json({ error: "Asset not found" }, { status: 404 });
-
-    if (asset.status !== "Available") {
-      // Find who holds it
-      const currentAlloc = db.prepare(
-        `SELECT e.name as holderName FROM asset_allocations aa
-         LEFT JOIN employees e ON e.id = aa.allocated_to_employee_id
-         WHERE aa.asset_id = ? AND aa.status = 'Active' LIMIT 1`
-      ).get(assetId) as any;
-
-      return Response.json({
-        error: `Asset is currently ${asset.status}${currentAlloc?.holderName ? ` — held by ${currentAlloc.holderName}` : ""}. Use Transfer Request instead.`,
-        currentHolder: currentAlloc?.holderName || null,
-        suggestTransfer: true,
-      }, { status: 409 });
+    if (!assetId || (!employeeId && !departmentId)) {
+        return Response.json({ error: "Asset and Target (Employee or Department) are required" }, { status: 400 });
     }
 
-    const result = db.prepare(
-      `INSERT INTO asset_allocations (asset_id, allocated_to_employee_id, allocated_to_department_id,
-        allocated_by_employee_id, expected_return_date, status)
-       VALUES (?, ?, ?, ?, ?, 'Active')`
-    ).run(assetId, employeeId || null, departmentId || null, user.id, expectedReturnDate || null);
+    const asset = AssetModel.getById(assetId);
+    if (!asset || asset.status !== 'Available') {
+        return Response.json({ error: "Asset is not available for allocation" }, { status: 400 });
+    }
 
-    // Update asset status
-    db.prepare("UPDATE assets SET status = 'Allocated', updated_at = datetime('now') WHERE id = ?").run(assetId);
+    const allocationId = AllocationModel.create({
+        assetId, employeeId, departmentId, allocatedByEmployeeId: user.id, expectedReturnDate
+    });
 
-    // Log & notify
-    const recipientName = employeeId
-      ? (db.prepare("SELECT name FROM employees WHERE id = ?").get(employeeId) as any)?.name
-      : (db.prepare("SELECT name FROM departments WHERE id = ?").get(departmentId) as any)?.name;
+    AssetModel.updateStatus(assetId, 'Allocated');
 
-    db.prepare(
-      `INSERT INTO activity_logs (employee_id, action, entity_type, entity_id, details)
-       VALUES (?, 'ALLOCATE', 'Asset', ?, ?)`
-    ).run(user.id, assetId, `Allocated ${asset.name} (${asset.asset_tag}) to ${recipientName}`);
+    ActivityModel.log(user.id, 'ALLOCATE', 'Asset', assetId, `Allocated ${asset.asset_tag} to ${employeeId ? 'Employee '+employeeId : 'Department '+departmentId}`);
 
     if (employeeId) {
-      db.prepare(
-        `INSERT INTO notifications (employee_id, title, message, type, link)
-         VALUES (?, 'Asset Assigned', ?, 'ASSET_ASSIGNED', '/dashboard/allocations')`
-      ).run(employeeId, `${asset.name} (${asset.asset_tag}) has been assigned to you.`);
+        NotificationModel.create(employeeId, 'Asset Assigned', `You have been assigned asset: ${asset.name} (${asset.asset_tag})`, 'ASSET_ASSIGNED', '/dashboard/assets');
     }
 
-    return Response.json({ message: "Asset allocated", id: result.lastInsertRowid }, { status: 201 });
+    return Response.json({ message: "Asset allocated successfully" }, { status: 201 });
   } catch (error: any) {
-    console.error("Allocate error:", error);
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -1,6 +1,9 @@
-import { getDb } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { type NextRequest } from "next/server";
+import { MaintenanceModel } from "@/models/maintenance.model";
+import { ActivityModel } from "@/models/activity.model";
+import { NotificationModel } from "@/models/notification.model";
+import { AssetModel } from "@/models/asset.model";
 
 // PUT /api/maintenance/[id]
 export async function PUT(
@@ -17,53 +20,32 @@ export async function PUT(
     const reqId = parseInt(id);
     const { action, assignedTechnician, resolutionNotes } = await request.json();
 
-    const db = getDb();
-    const mReq = db.prepare(
-      `SELECT mr.*, a.name as assetName, a.asset_tag as assetTag 
-       FROM maintenance_requests mr JOIN assets a ON a.id = mr.asset_id WHERE mr.id = ?`
-    ).get(reqId) as any;
-    
+    const mReq = MaintenanceModel.getById(reqId);
     if (!mReq) return Response.json({ error: "Request not found" }, { status: 404 });
 
-    if (action === "approve") {
-        db.prepare("UPDATE maintenance_requests SET status = 'Approved', approved_by_employee_id = ?, updated_at = datetime('now') WHERE id = ?").run(user.id, reqId);
-        db.prepare("UPDATE assets SET status = 'Under Maintenance', updated_at = datetime('now') WHERE id = ?").run(mReq.asset_id);
-        
-        db.prepare(`INSERT INTO activity_logs (employee_id, action, entity_type, entity_id, details) VALUES (?, 'APPROVE_MAINTENANCE', 'Maintenance', ?, ?)`).run(user.id, reqId, `Approved maintenance for ${mReq.assetName}`);
-        
-        db.prepare(`INSERT INTO notifications (employee_id, title, message, type, link) VALUES (?, 'Maintenance Approved', ?, 'MAINTENANCE_APPROVED', '/dashboard/maintenance')`).run(mReq.requested_by_employee_id, `Your maintenance request for ${mReq.assetName} has been approved.`);
-        
-        return Response.json({ message: "Request approved" });
+    if (action === 'approve') {
+        MaintenanceModel.updateStatus(reqId, 'Approved', { approvedByEmployeeId: user.id });
+        AssetModel.updateStatus(mReq.asset_id, 'Under Maintenance');
+        NotificationModel.create(mReq.requested_by_employee_id, 'Maintenance Approved', `Your maintenance request "${mReq.title}" was approved.`, 'MAINTENANCE_UPDATE');
+        ActivityModel.log(user.id, 'MAINTENANCE_APPROVE', 'Asset', mReq.asset_id, `Approved maintenance: ${mReq.title}`);
+    } else if (action === 'reject') {
+        MaintenanceModel.updateStatus(reqId, 'Rejected', { approvedByEmployeeId: user.id });
+        NotificationModel.create(mReq.requested_by_employee_id, 'Maintenance Rejected', `Your maintenance request "${mReq.title}" was rejected.`, 'MAINTENANCE_UPDATE');
+        ActivityModel.log(user.id, 'MAINTENANCE_REJECT', 'Asset', mReq.asset_id, `Rejected maintenance: ${mReq.title}`);
+    } else if (action === 'assign') {
+        MaintenanceModel.updateStatus(reqId, 'Assigned', { assignedTechnician });
+    } else if (action === 'start') {
+        MaintenanceModel.updateStatus(reqId, 'In Progress');
+    } else if (action === 'resolve') {
+        MaintenanceModel.updateStatus(reqId, 'Resolved', { resolutionNotes });
+        AssetModel.updateStatus(mReq.asset_id, 'Available');
+        NotificationModel.create(mReq.requested_by_employee_id, 'Maintenance Resolved', `Your maintenance request "${mReq.title}" has been resolved.`, 'MAINTENANCE_UPDATE');
+        ActivityModel.log(user.id, 'MAINTENANCE_RESOLVE', 'Asset', mReq.asset_id, `Resolved maintenance: ${mReq.title}. Notes: ${resolutionNotes}`);
+    } else {
+         return Response.json({ error: "Invalid action" }, { status: 400 });
     }
 
-    if (action === "reject") {
-        db.prepare("UPDATE maintenance_requests SET status = 'Rejected', approved_by_employee_id = ?, updated_at = datetime('now') WHERE id = ?").run(user.id, reqId);
-        
-        db.prepare(`INSERT INTO notifications (employee_id, title, message, type, link) VALUES (?, 'Maintenance Rejected', ?, 'MAINTENANCE_REJECTED', '/dashboard/maintenance')`).run(mReq.requested_by_employee_id, `Your maintenance request for ${mReq.assetName} has been rejected.`);
-        
-        return Response.json({ message: "Request rejected" });
-    }
-
-    if (action === "assign") {
-        db.prepare("UPDATE maintenance_requests SET status = 'Assigned', assigned_technician = ?, updated_at = datetime('now') WHERE id = ?").run(assignedTechnician, reqId);
-        return Response.json({ message: "Technician assigned" });
-    }
-
-    if (action === "start") {
-        db.prepare("UPDATE maintenance_requests SET status = 'In Progress', updated_at = datetime('now') WHERE id = ?").run(reqId);
-        return Response.json({ message: "Maintenance in progress" });
-    }
-
-    if (action === "resolve") {
-        db.prepare("UPDATE maintenance_requests SET status = 'Resolved', resolution_notes = ?, updated_at = datetime('now') WHERE id = ?").run(resolutionNotes || null, reqId);
-        db.prepare("UPDATE assets SET status = 'Available', updated_at = datetime('now') WHERE id = ?").run(mReq.asset_id);
-        
-        db.prepare(`INSERT INTO notifications (employee_id, title, message, type, link) VALUES (?, 'Maintenance Resolved', ?, 'MAINTENANCE_RESOLVED', '/dashboard/maintenance')`).run(mReq.requested_by_employee_id, `Maintenance for ${mReq.assetName} has been completed.`);
-        
-        return Response.json({ message: "Maintenance resolved" });
-    }
-
-    return Response.json({ error: "Invalid action" }, { status: 400 });
+    return Response.json({ message: `Maintenance ${action} successful` });
   } catch (error: any) {
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
