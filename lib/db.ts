@@ -11,6 +11,7 @@ export function getDb(): Database.Database {
     db.pragma("journal_mode = WAL");
     db.pragma("foreign_keys = ON");
     initializeSchema(db);
+    runMigrations(db);
   }
   return db;
 }
@@ -198,7 +199,13 @@ function initializeSchema(db: Database.Database) {
       status TEXT NOT NULL DEFAULT 'Pending' CHECK(status IN ('Pending', 'Verified', 'Missing', 'Damaged')),
       notes TEXT,
       audited_at TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      resolution_status TEXT CHECK(resolution_status IN ('Unresolved', 'Resolved')),
+      resolution_action TEXT CHECK(resolution_action IN ('Confirm_Lost', 'Confirm_Damaged', 'Override_Verified')),
+      resolved_by_employee_id INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+      resolved_at TEXT,
+      resolution_notes TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     -- ============================================
@@ -253,6 +260,27 @@ function initializeSchema(db: Database.Database) {
 
   // Add foreign key for departments.head_employee_id after employees table exists
   // (handled via application logic since SQLite doesn't support ADD CONSTRAINT)
+}
+
+function runMigrations(db: Database.Database) {
+  const info = db.prepare("PRAGMA table_info(audit_items)").all() as any[];
+  const hasResolutionStatus = info.some((col: any) => col.name === "resolution_status");
+  if (!hasResolutionStatus) {
+    db.exec(`
+      ALTER TABLE audit_items ADD COLUMN resolution_status TEXT CHECK(resolution_status IN ('Unresolved', 'Resolved'));
+      ALTER TABLE audit_items ADD COLUMN resolution_action TEXT CHECK(resolution_action IN ('Confirm_Lost', 'Confirm_Damaged', 'Override_Verified'));
+      ALTER TABLE audit_items ADD COLUMN resolved_by_employee_id INTEGER REFERENCES employees(id) ON DELETE SET NULL;
+      ALTER TABLE audit_items ADD COLUMN resolved_at TEXT;
+      ALTER TABLE audit_items ADD COLUMN resolution_notes TEXT;
+    `);
+  }
+
+  const hasUpdatedAt = info.some((col: any) => col.name === "updated_at");
+  if (!hasUpdatedAt) {
+    db.exec(`
+      ALTER TABLE audit_items ADD COLUMN updated_at TEXT;
+    `);
+  }
 }
 
 export default getDb;

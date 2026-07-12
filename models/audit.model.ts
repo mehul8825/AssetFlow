@@ -7,7 +7,8 @@ export class AuditModel {
       SELECT ac.*, e.name as createdByName,
              (SELECT COUNT(*) FROM audit_items ai WHERE ai.audit_cycle_id = ac.id) as totalItems,
              (SELECT COUNT(*) FROM audit_items ai WHERE ai.audit_cycle_id = ac.id AND ai.status != 'Pending') as completedItems,
-             (SELECT COUNT(*) FROM audit_items ai WHERE ai.audit_cycle_id = ac.id AND ai.status IN ('Missing', 'Damaged')) as discrepancyCount
+             (SELECT COUNT(*) FROM audit_items ai WHERE ai.audit_cycle_id = ac.id AND ai.status IN ('Missing', 'Damaged')) as discrepancyCount,
+             (SELECT COUNT(*) FROM audit_items ai WHERE ai.audit_cycle_id = ac.id AND ai.resolution_status = 'Unresolved') as unresolvedDiscrepancyCount
       FROM audit_cycles ac
       JOIN employees e ON e.id = ac.created_by_employee_id
     `;
@@ -25,7 +26,8 @@ export class AuditModel {
   static getById(id: number) {
     const db = getDb();
     return db.prepare(
-      `SELECT ac.*, e.name as createdByName
+      `SELECT ac.*, e.name as createdByName,
+              (SELECT COUNT(*) FROM audit_items ai WHERE ai.audit_cycle_id = ac.id AND ai.resolution_status = 'Unresolved') as unresolvedDiscrepancyCount
        FROM audit_cycles ac
        JOIN employees e ON e.id = ac.created_by_employee_id
        WHERE ac.id = ?`
@@ -43,10 +45,11 @@ export class AuditModel {
       const db = getDb();
       return db.prepare(
         `SELECT ai.*, a.name as assetName, a.asset_tag as assetTag, a.location, a.status as assetStatus,
-                e.name as auditedByName
+                e.name as auditedByName, r.name as resolvedByName
          FROM audit_items ai
          JOIN assets a ON a.id = ai.asset_id
          LEFT JOIN employees e ON e.id = ai.audited_by_employee_id
+         LEFT JOIN employees r ON r.id = ai.resolved_by_employee_id
          WHERE ai.audit_cycle_id = ?`
       ).all(auditId);
   }
@@ -54,7 +57,7 @@ export class AuditModel {
   static getItemById(itemId: number) {
       const db = getDb();
       return db.prepare(
-        `SELECT ai.audit_cycle_id, ai.asset_id FROM audit_items ai WHERE ai.id = ?`
+        `SELECT ai.*, a.name as assetName FROM audit_items ai JOIN assets a ON a.id = ai.asset_id WHERE ai.id = ?`
       ).get(itemId) as any;
   }
 
@@ -91,8 +94,24 @@ export class AuditModel {
 
   static updateItemStatus(itemId: number, status: string, auditedByEmployeeId: number, notes?: string) {
       const db = getDb();
+      const resolutionStatus = (status === 'Missing' || status === 'Damaged') ? 'Unresolved' : null;
       db.prepare(
-        `UPDATE audit_items SET status = ?, notes = ?, audited_by_employee_id = ?, updated_at = datetime('now') WHERE id = ?`
-      ).run(status, notes || null, auditedByEmployeeId, itemId);
+        `UPDATE audit_items SET status = ?, notes = ?, audited_by_employee_id = ?, resolution_status = ?, audited_at = datetime('now'), updated_at = datetime('now') WHERE id = ?`
+      ).run(status, notes || null, auditedByEmployeeId, resolutionStatus, itemId);
+  }
+
+  static resolveDiscrepancy(itemId: number, resolutionAction: string, resolvedByEmployeeId: number, notes?: string) {
+      const db = getDb();
+      const statusUpdate = resolutionAction === 'Override_Verified' ? ", status = 'Verified'" : "";
+      db.prepare(
+        `UPDATE audit_items SET
+          resolution_status = 'Resolved',
+          resolution_action = ?,
+          resolved_by_employee_id = ?,
+          resolved_at = datetime('now'),
+          resolution_notes = ?
+          ${statusUpdate}
+         WHERE id = ?`
+      ).run(resolutionAction, resolvedByEmployeeId, notes || null, itemId);
   }
 }

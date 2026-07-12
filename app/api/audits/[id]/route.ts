@@ -38,9 +38,17 @@ export async function PUT(
         return Response.json({ error: "Forbidden" }, { status: 403 });
 
     const { id } = await params;
+    const auditId = parseInt(id);
+
+    const audit = AuditModel.getById(auditId);
+    if (!audit) return Response.json({ error: "Audit not found" }, { status: 404 });
+
+    if (audit.unresolvedDiscrepancyCount > 0) {
+        return Response.json({ error: "Cannot close audit cycle with unresolved discrepancies" }, { status: 400 });
+    }
     
-    AuditModel.updateStatus(parseInt(id), 'Closed');
-    ActivityModel.log(user.id, 'UPDATE', 'Audit', parseInt(id), 'Closed audit cycle');
+    AuditModel.updateStatus(auditId, 'Closed');
+    ActivityModel.log(user.id, 'UPDATE', 'Audit', auditId, 'Closed audit cycle');
 
     return Response.json({ message: "Audit cycle closed" });
   } catch (error: any) {

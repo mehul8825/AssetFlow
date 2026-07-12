@@ -21,6 +21,13 @@ export default function AuditsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [expandedCycle, setExpandedCycle] = useState<number | null>(null);
   const [cycleDetails, setCycleDetails] = useState<any>(null);
+
+  // Discrepancy Resolution States
+  const [resolveItem, setResolveItem] = useState<any | null>(null);
+  const [resolutionForm, setResolutionForm] = useState({
+    action: "", // Confirm_Lost, Confirm_Damaged, Override_Verified
+    notes: ""
+  });
   
   const [form, setForm] = useState({
     name: "", scopeType: "Department", scopeValue: "", startDate: "", endDate: "", auditorIds: [] as string[]
@@ -45,16 +52,20 @@ export default function AuditsPage() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const loadCycleDetails = async (id: number) => {
-      if (expandedCycle === id) {
-          setExpandedCycle(null);
-          return;
-      }
       const res = await fetch(`/api/audits/${id}`);
       const data = await res.json();
       if (res.ok) {
           setCycleDetails(data);
           setExpandedCycle(id);
       }
+  };
+
+  const toggleCycleDetails = async (id: number) => {
+      if (expandedCycle === id) {
+          setExpandedCycle(null);
+          return;
+      }
+      await loadCycleDetails(id);
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -72,12 +83,20 @@ export default function AuditsPage() {
   };
 
   const handleClose = async (id: number) => {
+      const cycle = audits.find(a => a.id === id);
+      if (cycle && cycle.unresolvedDiscrepancyCount > 0) {
+          toast.error("You must resolve all discrepancies before closing this audit cycle.");
+          return;
+      }
       if (!confirm("Are you sure you want to close this audit cycle? No more items can be updated.")) return;
       const res = await fetch(`/api/audits/${id}`, { method: "PUT" });
       if (res.ok) {
           toast.success("Audit closed");
           fetchData();
           if (expandedCycle === id) loadCycleDetails(id);
+      } else {
+          const data = await res.json();
+          toast.error(data.error || "Failed to close audit cycle");
       }
   };
 
@@ -90,7 +109,42 @@ export default function AuditsPage() {
           toast.success(`Marked as ${status}`);
           loadCycleDetails(expandedCycle!);
           fetchData(); // update progress bar
+      } else {
+          const data = await res.json();
+          toast.error(data.error || "Failed to update item");
       }
+  };
+
+  const handleAuditorMark = async (itemId: number, status: string) => {
+      const notes = prompt(`Enter optional auditor notes for marking this asset as ${status}:`);
+      if (notes === null) return; // User cancelled
+      await updateItemStatus(itemId, status, notes);
+  };
+
+  const handleResolveSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!resolveItem) return;
+
+      const res = await fetch(`/api/audits/items/${resolveItem.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+              action: "resolve",
+              resolutionAction: resolutionForm.action,
+              resolutionNotes: resolutionForm.notes
+          })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+          toast.error(data.error || "Failed to resolve discrepancy");
+          return;
+      }
+
+      toast.success("Discrepancy resolved successfully!");
+      setResolveItem(null);
+      loadCycleDetails(expandedCycle!);
+      fetchData();
   };
 
   if (loading) return <div className="mx-auto flex max-w-7xl justify-center py-10"><div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" /></div>;
@@ -169,12 +223,20 @@ export default function AuditsPage() {
 
               return (
                   <div key={audit.id} className="overflow-hidden rounded-xl border border-border bg-card">
-                      <div className="flex cursor-pointer items-center justify-between p-5 hover:bg-muted/30" onClick={() => loadCycleDetails(audit.id)}>
+                      <div className="flex cursor-pointer items-center justify-between p-5 hover:bg-muted/30" onClick={() => toggleCycleDetails(audit.id)}>
                           <div className="flex-1">
-                              <div className="flex items-center gap-2">
+                              <div className="flex flex-wrap items-center gap-2">
                                   <h3 className="font-semibold">{audit.name}</h3>
                                   <Badge variant={audit.status === 'Open' ? 'default' : 'secondary'}>{audit.status}</Badge>
-                                  {audit.discrepancyCount > 0 && <Badge variant="destructive" className="flex items-center gap-1"><AlertCircle className="h-3 w-3" /> {audit.discrepancyCount} Discrepancies</Badge>}
+                                  {audit.unresolvedDiscrepancyCount > 0 ? (
+                                      <Badge variant="destructive" className="flex items-center gap-1">
+                                          <AlertCircle className="h-3 w-3" /> {audit.unresolvedDiscrepancyCount} Unresolved Discrepancies
+                                      </Badge>
+                                  ) : audit.discrepancyCount > 0 ? (
+                                      <Badge variant="outline" className="flex items-center gap-1 text-emerald-600 border-emerald-200 bg-emerald-50">
+                                          <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Discrepancies Resolved
+                                      </Badge>
+                                  ) : null}
                               </div>
                               <div className="mt-2 flex flex-wrap gap-4 text-xs text-muted-foreground">
                                   <span>Scope: {audit.scope_type} - {audit.scope_value}</span>
@@ -197,7 +259,15 @@ export default function AuditsPage() {
                               <div className="mb-4 flex items-center justify-between">
                                   <h4 className="font-semibold">Audit Items</h4>
                                   {isManager && audit.status === 'Open' && (
-                                      <Button variant="outline" size="sm" onClick={() => handleClose(audit.id)}>Close Audit Cycle</Button>
+                                      <Button 
+                                          variant="outline" 
+                                          size="sm" 
+                                          onClick={() => handleClose(audit.id)}
+                                          disabled={audit.unresolvedDiscrepancyCount > 0}
+                                          title={audit.unresolvedDiscrepancyCount > 0 ? "All discrepancies must be resolved first" : ""}
+                                      >
+                                          Close Audit Cycle
+                                      </Button>
                                   )}
                               </div>
                               
@@ -209,32 +279,102 @@ export default function AuditsPage() {
                                               <th className="p-3 text-left">Location</th>
                                               <th className="p-3 text-left">System Status</th>
                                               <th className="p-3 text-left">Audit Status</th>
-                                              <th className="p-3 text-left">Auditor Notes</th>
+                                              <th className="p-3 text-left">Audit/Resolution Notes</th>
                                               <th className="p-3 text-right">Actions</th>
                                           </tr>
                                       </thead>
                                       <tbody className="divide-y">
                                           {cycleDetails.items.map((item: any) => (
                                               <tr key={item.id} className="hover:bg-muted/30">
-                                                  <td className="p-3"><p className="font-medium">{item.assetName}</p><p className="font-mono text-xs text-muted-foreground">{item.assetTag}</p></td>
+                                                  <td className="p-3">
+                                                      <p className="font-medium">{item.assetName}</p>
+                                                      <p className="font-mono text-xs text-muted-foreground">{item.assetTag}</p>
+                                                  </td>
                                                   <td className="p-3 text-muted-foreground">{item.location || '—'}</td>
                                                   <td className="p-3 text-muted-foreground">{item.assetStatus}</td>
                                                   <td className="p-3">
-                                                      {item.status === 'Pending' ? <Badge variant="outline" className="text-orange-500 border-orange-200 bg-orange-50"><HelpCircle className="mr-1 h-3 w-3" /> Pending</Badge> :
-                                                       item.status === 'Present' ? <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50"><CheckCircle2 className="mr-1 h-3 w-3" /> Present</Badge> :
-                                                       <Badge variant="destructive">{item.status}</Badge>}
-                                                  </td>
-                                                  <td className="p-3 text-xs text-muted-foreground max-w-[200px] truncate">{item.notes || '—'}</td>
-                                                  <td className="p-3 text-right">
-                                                      {audit.status === 'Open' ? (
-                                                          <div className="flex justify-end gap-2">
-                                                              {item.status !== 'Present' && <Button size="sm" variant="outline" className="h-7 text-xs bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-700" onClick={() => updateItemStatus(item.id, 'Present')}>Present</Button>}
-                                                              {item.status !== 'Missing' && <Button size="sm" variant="outline" className="h-7 text-xs bg-red-50 hover:bg-red-100 hover:text-red-700" onClick={() => updateItemStatus(item.id, 'Missing')}>Missing</Button>}
-                                                              {item.status !== 'Damaged' && <Button size="sm" variant="outline" className="h-7 text-xs bg-orange-50 hover:bg-orange-100 hover:text-orange-700" onClick={() => updateItemStatus(item.id, 'Damaged')}>Damaged</Button>}
+                                                      {item.status === 'Pending' ? (
+                                                          <Badge variant="outline" className="text-orange-500 border-orange-200 bg-orange-50">
+                                                              <HelpCircle className="mr-1 h-3 w-3" /> Pending
+                                                          </Badge>
+                                                      ) : item.status === 'Verified' ? (
+                                                          <div className="flex flex-col items-start gap-1">
+                                                              <Badge variant="outline" className="text-emerald-600 border-emerald-200 bg-emerald-50">
+                                                                  <CheckCircle2 className="mr-1 h-3 w-3" /> Present
+                                                              </Badge>
+                                                              {item.resolution_action === 'Override_Verified' && (
+                                                                  <span className="text-[10px] text-emerald-600">Overridden by {item.resolvedByName}</span>
+                                                              )}
+                                                          </div>
+                                                      ) : item.status === 'Missing' ? (
+                                                          <div className="flex flex-col items-start gap-1">
+                                                              <Badge variant="destructive">Missing</Badge>
+                                                              {item.resolution_status === 'Unresolved' ? (
+                                                                  <span className="text-[10px] font-semibold text-red-500">Unresolved Discrepancy</span>
+                                                              ) : (
+                                                                  <span className="text-[10px] text-muted-foreground font-medium text-emerald-600">Confirmed Lost ({item.resolvedByName})</span>
+                                                              )}
+                                                          </div>
+                                                      ) : item.status === 'Damaged' ? (
+                                                          <div className="flex flex-col items-start gap-1">
+                                                              <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50">Damaged</Badge>
+                                                              {item.resolution_status === 'Unresolved' ? (
+                                                                  <span className="text-[10px] font-semibold text-amber-600">Unresolved Discrepancy</span>
+                                                              ) : (
+                                                                  <span className="text-[10px] text-muted-foreground font-medium text-emerald-600">Confirmed Damaged ({item.resolvedByName})</span>
+                                                              )}
                                                           </div>
                                                       ) : (
-                                                          <span className="text-xs text-muted-foreground">{item.auditedByName ? `Audited by ${item.auditedByName}` : 'Not audited'}</span>
+                                                          <Badge>{item.status}</Badge>
                                                       )}
+                                                  </td>
+                                                  <td className="p-3 text-xs max-w-[200px] truncate">
+                                                      {item.notes && <p className="text-muted-foreground"><strong>Auditor:</strong> {item.notes}</p>}
+                                                      {item.resolution_notes && <p className="text-indigo-600"><strong>Resolution:</strong> {item.resolution_notes}</p>}
+                                                      {!item.notes && !item.resolution_notes && <span className="text-muted-foreground">—</span>}
+                                                  </td>
+                                                  <td className="p-3 text-right">
+                                                      <div className="flex justify-end gap-2 items-center">
+                                                          {/* Manager Discrepancy Resolution button */}
+                                                          {isManager && item.resolution_status === 'Unresolved' && (
+                                                              <Button
+                                                                  size="sm"
+                                                                  className="h-7 text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200"
+                                                                  variant="outline"
+                                                                  onClick={() => {
+                                                                      setResolveItem(item);
+                                                                      setResolutionForm({
+                                                                          action: item.status === 'Missing' ? 'Confirm_Lost' : 'Confirm_Damaged',
+                                                                          notes: ''
+                                                                      });
+                                                                  }}
+                                                              >
+                                                                  Resolve
+                                                              </Button>
+                                                          )}
+
+                                                          {/* Regular Auditor Actions */}
+                                                          {audit.status === 'Open' && item.resolution_status !== 'Resolved' && (
+                                                              <div className="flex gap-1">
+                                                                  {item.status !== 'Verified' && (
+                                                                      <Button size="sm" variant="outline" className="h-7 text-xs bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-700" onClick={() => updateItemStatus(item.id, 'Verified')}>Present</Button>
+                                                                  )}
+                                                                  {item.status !== 'Missing' && (
+                                                                      <Button size="sm" variant="outline" className="h-7 text-xs bg-red-50 hover:bg-red-100 hover:text-red-700" onClick={() => handleAuditorMark(item.id, 'Missing')}>Missing</Button>
+                                                                  )}
+                                                                  {item.status !== 'Damaged' && (
+                                                                      <Button size="sm" variant="outline" className="h-7 text-xs bg-orange-50 hover:bg-orange-100 hover:text-orange-700" onClick={() => handleAuditorMark(item.id, 'Damaged')}>Damaged</Button>
+                                                                  )}
+                                                              </div>
+                                                          )}
+
+                                                          {/* Post-Audit status messages */}
+                                                          {audit.status === 'Closed' && item.resolution_status !== 'Resolved' && (
+                                                              <span className="text-xs text-muted-foreground">
+                                                                  {item.auditedByName ? `Audited by ${item.auditedByName}` : 'Not audited'}
+                                                              </span>
+                                                          )}
+                                                      </div>
                                                   </td>
                                               </tr>
                                           ))}
@@ -249,6 +389,59 @@ export default function AuditsPage() {
           })}
           {audits.length === 0 && <div className="py-10 text-center text-muted-foreground">No audits scheduled.</div>}
       </div>
+
+      {/* Discrepancy Resolution Dialog */}
+      {resolveItem && (
+          <Dialog open={!!resolveItem} onOpenChange={(open) => !open && setResolveItem(null)}>
+              <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                      <DialogTitle>Resolve Audit Discrepancy</DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={handleResolveSubmit} className="space-y-4">
+                      <div className="rounded-lg border bg-muted/30 p-3 text-sm space-y-1">
+                          <p><strong>Asset:</strong> {resolveItem.assetName} ({resolveItem.assetTag})</p>
+                          <p><strong>Audited By:</strong> {resolveItem.auditedByName || "Unknown"}</p>
+                          <p><strong>Audit Finding:</strong> <span className={resolveItem.status === 'Missing' ? 'text-red-600 font-medium' : 'text-amber-600 font-medium'}>{resolveItem.status}</span></p>
+                          {resolveItem.notes && <p><strong>Auditor Notes:</strong> "{resolveItem.notes}"</p>}
+                      </div>
+
+                      <div className="space-y-2">
+                          <Label>Resolution Action *</Label>
+                          <select 
+                              className="w-full rounded-md border bg-background p-2 text-sm"
+                              value={resolutionForm.action} 
+                              onChange={e => setResolutionForm(p => ({ ...p, action: e.target.value }))}
+                              required
+                          >
+                              {resolveItem.status === 'Missing' ? (
+                                  <>
+                                      <option value="Confirm_Lost">Confirm Lost (Mark Asset as Lost & Terminate Allocation)</option>
+                                      <option value="Override_Verified">Override to Present (Verify asset is present)</option>
+                                  </>
+                              ) : (
+                                  <>
+                                      <option value="Confirm_Damaged">Confirm & Repair (Mark Asset as Under Maintenance & Create Repair Request)</option>
+                                      <option value="Override_Verified">Override to Present (Verify asset is in good condition)</option>
+                                  </>
+                              )}
+                          </select>
+                      </div>
+
+                      <div className="space-y-2">
+                          <Label>Manager Resolution Notes *</Label>
+                          <Textarea 
+                              value={resolutionForm.notes} 
+                              onChange={e => setResolutionForm(p => ({ ...p, notes: e.target.value }))} 
+                              placeholder="Provide context on why this resolution was chosen..."
+                              required
+                          />
+                      </div>
+
+                      <Button type="submit" className="w-full">Submit Resolution</Button>
+                  </form>
+              </DialogContent>
+          </Dialog>
+      )}
     </div>
   );
 }
