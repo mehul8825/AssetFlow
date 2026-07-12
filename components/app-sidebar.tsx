@@ -198,9 +198,8 @@ export function AppSidebar() {
 
       <SidebarFooter className="p-4 border-t border-white/5 bg-gradient-to-b from-transparent to-black/10">
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <div className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-all duration-300 hover:bg-white/5 cursor-pointer ring-1 ring-transparent hover:ring-white/10 hover:shadow-md group outline-none">
-              <div className="relative">
+          <DropdownMenuTrigger render={<div className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-all duration-300 hover:bg-white/5 cursor-pointer ring-1 ring-transparent hover:ring-white/10 hover:shadow-md group outline-none" />}>
+              <div className="relative pointer-events-none">
                 <Avatar className="h-10 w-10 ring-2 ring-background transition-transform duration-300 group-hover:scale-105 group-hover:ring-primary/30">
                   <AvatarFallback className="bg-gradient-to-br from-primary to-blue-600 text-white font-semibold text-sm">
                     {initials}
@@ -216,7 +215,6 @@ export function AppSidebar() {
                   {user?.role}
                 </p>
               </div>
-            </div>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="center" side="top" className="w-64 rounded-xl border-white/10 bg-background/80 backdrop-blur-xl shadow-2xl p-2 mb-2">
             <div className="px-3 py-2.5">

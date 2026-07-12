@@ -120,7 +120,7 @@ export default function MaintenancePage() {
           <p className="mt-1 text-sm text-muted-foreground">Raise and track repair requests for assets.</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild><Button>+ Raise Request</Button></DialogTrigger>
+          <DialogTrigger render={<Button />}>+ Raise Request</DialogTrigger>
           <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
             <DialogHeader><DialogTitle>Raise Maintenance Request</DialogTitle></DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
