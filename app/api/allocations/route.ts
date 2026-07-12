@@ -84,7 +84,6 @@ export async function POST(request: NextRequest) {
 
         if (employeeId) {
             NotificationModel.create(employeeId, 'Asset Assigned', `You have been assigned asset: ${asset.name} (${asset.asset_tag}). The asset price will be deducted from your salary.`, 'ASSET_ASSIGNED', '/dashboard/assets');
-            EmployeeModel.addSalaryDeduction(employeeId, asset.purchase_cost || 0);
         }
         return allocationId;
     });

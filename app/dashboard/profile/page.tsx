@@ -91,16 +91,6 @@ export default function ProfilePage() {
               </Label>
               <Input value={profile.departmentName || "No Department"} readOnly className="bg-muted/50 font-medium" />
             </div>
-
-            <div className="space-y-2 sm:col-span-2 rounded-xl border border-orange-500/20 bg-orange-500/5 p-4 mt-2">
-              <Label className="text-xs font-semibold text-orange-600 uppercase tracking-wider">
-                Pending Salary Deductions (Assets)
-              </Label>
-              <div className="mt-1 text-3xl font-bold text-orange-600">
-                ${(profile.salary_deductions || 0).toFixed(2)}
-              </div>
-              <p className="mt-1 text-xs text-orange-600/80">This amount will be deducted from your upcoming salary for personal assets allocated to you.</p>
-            </div>
           </div>
 
           <div className="mt-8 flex justify-end gap-3 pt-6 border-t border-border">
